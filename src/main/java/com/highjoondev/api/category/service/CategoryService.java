@@ -26,7 +26,9 @@ public class CategoryService {
     }
 
     public List<CategoryResponse> findAll() {
-        return categoryRepository.findAll().stream().map(CategoryResponse::from).toList();
+        return categoryRepository.findAll().stream()
+                .map(CategoryResponse::from)
+                .toList();
     }
 
     public CategoryResponse findById(UUID id) {
