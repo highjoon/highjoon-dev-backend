@@ -2,8 +2,10 @@ package com.highjoondev.api.category.controller;
 
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
+import com.highjoondev.api.category.dto.CategoryUpdateRequest;
 import com.highjoondev.api.category.service.CategoryService;
 import com.highjoondev.api.global.response.ApiResponse;
+import com.highjoondev.api.global.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -36,8 +38,7 @@ public class CategoryController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효성 검사 실패")
     })
     @PostMapping
-    public ResponseEntity<ApiResponse<CategoryResponse>> create(
-            @Valid @RequestBody CategoryCreateRequest request) {
+    public ResponseEntity<ApiResponse<CategoryResponse>> create(@Valid @RequestBody CategoryCreateRequest request) {
         CategoryResponse response = categoryService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
     }
@@ -67,5 +68,29 @@ public class CategoryController {
     public ApiResponse<CategoryResponse> findById(
             @Parameter(description = "카테고리 ID", required = true) @PathVariable UUID id) {
         return ApiResponse.ok(categoryService.findById(id));
+    }
+
+    @Operation(summary = "카테고리 업데이트", description = "카테고리를 업데이트합니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                responseCode = "200",
+                description = "업데이트 성공",
+                content = @Content(schema = @Schema(implementation = CategoryResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                responseCode = "404",
+                description = "카테고리를 찾을 수 없음",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                responseCode = "400",
+                description = "유효성 검사 실패 또는 부모 카테고리를 찾을 수 없음",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<CategoryResponse>> update(
+            @Parameter(description = "카테고리 ID", required = true) @PathVariable UUID id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "업데이트 본문") @Valid @RequestBody
+                    CategoryUpdateRequest request) {
+        CategoryResponse response = categoryService.updateById(id, request);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

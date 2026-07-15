@@ -38,4 +38,9 @@ public class Category {
         newCategory.parent = parentCategory;
         return newCategory;
     }
+
+    public void update(String title, Category parentCategory) {
+        this.title = title;
+        this.parent = parentCategory;
+    }
 }

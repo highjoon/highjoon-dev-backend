@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 
 import java.util.UUID;
 
-public record CategoryCreateRequest(
+public record CategoryUpdateRequest(
         @Schema(description = "카테고리 제목", example = "프론트엔드") @NotBlank
         String title,
 

@@ -3,6 +3,7 @@ package com.highjoondev.api.category.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
+import com.highjoondev.api.category.dto.CategoryUpdateRequest;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.service.CategoryService;
@@ -18,8 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -128,5 +128,63 @@ public class CategoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void update_shouldReturn200() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID parentId = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", parentId);
+        when(categoryService.updateById(id, request))
+                .thenReturn(new CategoryResponse(id, "title", parentId, Instant.now()));
+
+        mockMvc.perform(put("/api/v1/categories/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(id.toString()));
+    }
+
+    @Test
+    void update_whenInvalidId_shouldReturn404() throws Exception {
+        UUID id = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", id);
+        when(categoryService.updateById(id, request)).thenThrow(new CategoryNotFoundException(id));
+
+        mockMvc.perform(put("/api/v1/categories/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("CATEGORY_NOT_FOUND"));
+    }
+
+    @Test
+    void update_whenInvalidParentId_shouldReturn400() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID parentId = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", parentId);
+        when(categoryService.updateById(id, request)).thenThrow(new CategoryParentNotFoundException(parentId));
+
+        mockMvc.perform(put("/api/v1/categories/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("CATEGORY_PARENT_NOT_FOUND"));
+    }
+
+    @Test
+    void update_whenInvalidTitle_shouldReturn400() throws Exception {
+        UUID id = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("", null);
+
+        mockMvc.perform(put("/api/v1/categories/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
     }
 }

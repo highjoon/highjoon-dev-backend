@@ -2,6 +2,7 @@ package com.highjoondev.api.category.service;
 
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
+import com.highjoondev.api.category.dto.CategoryUpdateRequest;
 import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
@@ -120,5 +121,70 @@ public class CategoryServiceTest {
 
         // Then
         assertThat(response.parentId()).isEqualTo(parentId);
+    }
+
+    @Test
+    void update_withValidRequest_shouldSaveWithParentId() {
+        // Given
+        UUID id = UUID.randomUUID();
+        UUID parentId = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", parentId);
+
+        Category targetCategory = Category.create("old title", null);
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
+
+        Category parentCategory = Category.create("parent", null);
+        ReflectionTestUtils.setField(parentCategory, "id", parentId);
+        when(categoryRepository.findById(parentId)).thenReturn(Optional.of(parentCategory));
+
+        // When
+        CategoryResponse response = categoryService.updateById(id, request);
+
+        // Then
+        assertThat(response.parentId()).isEqualTo(parentId);
+    }
+
+    @Test
+    void update_withNonExistentId_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        UUID parentId = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", parentId);
+
+        // When, Then
+        assertThatThrownBy(() -> categoryService.updateById(id, request)).isInstanceOf(CategoryNotFoundException.class);
+    }
+
+    @Test
+    void update_withNonExistentParentId_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        UUID parentId = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", parentId);
+
+        Category targetCategory = Category.create("old title", null);
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
+        when(categoryRepository.findById(parentId)).thenReturn(Optional.empty());
+
+        // When, Then
+        assertThatThrownBy(() -> categoryService.updateById(id, request))
+                .isInstanceOf(CategoryParentNotFoundException.class);
+    }
+
+    @Test
+    void update_withNullParentId_shouldRemoveParent() {
+        // Given
+        UUID id = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", null);
+
+        Category targetCategory = Category.create("old title", null);
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
+
+        // When
+        CategoryResponse response = categoryService.updateById(id, request);
+
+        // Then
+        assertThat(response.parentId()).isNull();
+        assertThat(response.title()).isEqualTo("title");
     }
 }
