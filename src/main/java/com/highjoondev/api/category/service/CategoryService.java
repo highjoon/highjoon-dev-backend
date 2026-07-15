@@ -4,6 +4,7 @@ import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
+import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,15 +21,20 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponse create(CategoryCreateRequest request) {
-        Category category = Category.create(request.title(), request.parentId());
+        Category parent = null;
+        if (request.parentId() != null) {
+            parent = categoryRepository
+                    .findById(request.parentId())
+                    .orElseThrow(() -> new CategoryParentNotFoundException(request.parentId()));
+        }
+        Category category = Category.create(request.title(), parent);
         categoryRepository.save(category);
+
         return CategoryResponse.from(category);
     }
 
     public List<CategoryResponse> findAll() {
-        return categoryRepository.findAll().stream()
-                .map(CategoryResponse::from)
-                .toList();
+        return categoryRepository.findAll().stream().map(CategoryResponse::from).toList();
     }
 
     public CategoryResponse findById(UUID id) {

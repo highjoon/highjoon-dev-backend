@@ -4,12 +4,14 @@ import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
+import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +43,15 @@ public class CategoryServiceTest {
         // Then
         assertThat(response.title()).isEqualTo("title");
         verify(categoryRepository).save(any(Category.class));
+    }
+
+    @Test
+    void create_withNonExistentParentId_shouldThrowException() {
+        // Given
+        var request = new CategoryCreateRequest("title", UUID.randomUUID());
+        when(categoryRepository.findById(request.parentId())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> categoryService.create(request)).isInstanceOf(CategoryParentNotFoundException.class);
     }
 
     @Test
@@ -100,6 +111,9 @@ public class CategoryServiceTest {
         // Given
         UUID parentId = UUID.randomUUID();
         var request = new CategoryCreateRequest("title", parentId);
+        Category parentCategory = Category.create("parent", null);
+        ReflectionTestUtils.setField(parentCategory, "id", parentId);
+        when(categoryRepository.findById(parentId)).thenReturn(Optional.of(parentCategory));
 
         // When
         CategoryResponse response = categoryService.create(request);

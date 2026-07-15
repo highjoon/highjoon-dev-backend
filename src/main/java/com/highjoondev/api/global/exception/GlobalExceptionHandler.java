@@ -1,6 +1,7 @@
 package com.highjoondev.api.global.exception;
 
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
+import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.global.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CategoryNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleCategoryNotFoundException(CategoryNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(exception.getErrorCode().code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(CategoryParentNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCategoryParentNotFoundException(
+            CategoryParentNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(exception.getErrorCode().code(), exception.getMessage()));
     }
 

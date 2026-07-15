@@ -2,6 +2,7 @@ package com.highjoondev.api.global.exception;
 
 public enum ErrorCode {
     CATEGORY_NOT_FOUND("CATEGORY_NOT_FOUND", "Category not found: %s"),
+    CATEGORY_PARENT_NOT_FOUND("CATEGORY_PARENT_NOT_FOUND", "Category parent not found: %s"),
     VALIDATION_FAILED("VALIDATION_FAILED", "Invalid input"),
     INVALID_PARAMETER("INVALID_PARAMETER", "Invalid parameter: %s");
 

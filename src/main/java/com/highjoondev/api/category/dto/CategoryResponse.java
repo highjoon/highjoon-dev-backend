@@ -8,6 +8,9 @@ import java.util.UUID;
 public record CategoryResponse(UUID id, String title, UUID parentId, Instant createdAt) {
     public static CategoryResponse from(Category category) {
         return new CategoryResponse(
-                category.getId(), category.getTitle(), category.getParentId(), category.getCreatedAt());
+                category.getId(),
+                category.getTitle(),
+                category.getParent() != null ? category.getParent().getId() : null,
+                category.getCreatedAt());
     }
 }

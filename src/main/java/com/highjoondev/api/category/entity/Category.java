@@ -22,7 +22,8 @@ public class Category {
     @Column(nullable = false)
     private String title;
 
-    private UUID parentId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Category parent;
 
     @CreationTimestamp
     @Column(updatable = false)
@@ -31,10 +32,10 @@ public class Category {
     @UpdateTimestamp
     private Instant updatedAt;
 
-    public static Category create(String title, UUID parentId) {
-        Category category = new Category();
-        category.title = title;
-        category.parentId = parentId;
-        return category;
+    public static Category create(String title, Category parentCategory) {
+        Category newCategory = new Category();
+        newCategory.title = title;
+        newCategory.parent = parentCategory;
+        return newCategory;
     }
 }
