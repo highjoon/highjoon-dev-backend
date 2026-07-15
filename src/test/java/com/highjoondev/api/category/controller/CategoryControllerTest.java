@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.dto.CategoryUpdateRequest;
+import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.service.CategoryService;
@@ -173,6 +174,20 @@ public class CategoryControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("CATEGORY_PARENT_NOT_FOUND"));
+    }
+
+    @Test
+    void update_whenSelfAsParentId_shouldReturn400() throws Exception {
+        UUID id = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", id);
+        when(categoryService.updateById(id, request)).thenThrow(new CategoryInvalidParentException(id));
+
+        mockMvc.perform(put("/api/v1/categories/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("CATEGORY_INVALID_PARENT"));
     }
 
     @Test

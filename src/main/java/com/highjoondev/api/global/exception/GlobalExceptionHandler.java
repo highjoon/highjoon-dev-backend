@@ -1,5 +1,6 @@
 package com.highjoondev.api.global.exception;
 
+import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.global.response.ApiResponse;
@@ -23,6 +24,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CategoryParentNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleCategoryParentNotFoundException(
             CategoryParentNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(exception.getErrorCode().code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(CategoryInvalidParentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCategoryInvalidParentException(
+            CategoryInvalidParentException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(exception.getErrorCode().code(), exception.getMessage()));
     }

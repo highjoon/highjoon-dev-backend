@@ -4,6 +4,7 @@ import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.dto.CategoryUpdateRequest;
 import com.highjoondev.api.category.entity.Category;
+import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.repository.CategoryRepository;
@@ -169,6 +170,17 @@ public class CategoryServiceTest {
         // When, Then
         assertThatThrownBy(() -> categoryService.updateById(id, request))
                 .isInstanceOf(CategoryParentNotFoundException.class);
+    }
+
+    @Test
+    void update_withSelfAsParentId_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", id);
+
+        // When, Then
+        assertThatThrownBy(() -> categoryService.updateById(id, request))
+                .isInstanceOf(CategoryInvalidParentException.class);
     }
 
     @Test

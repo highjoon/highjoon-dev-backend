@@ -4,6 +4,7 @@ import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.dto.CategoryUpdateRequest;
 import com.highjoondev.api.category.entity.Category;
+import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.repository.CategoryRepository;
@@ -40,6 +41,10 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponse updateById(UUID id, CategoryUpdateRequest request) {
+        if (id.equals(request.parentId())) {
+            throw new CategoryInvalidParentException(id);
+        }
+
         Category category = categoryRepository.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
         Category parent = resolveParent(request.parentId());
         category.update(request.title(), parent);

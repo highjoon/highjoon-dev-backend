@@ -82,7 +82,7 @@ public class CategoryController {
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "400",
-                description = "유효성 검사 실패 또는 부모 카테고리를 찾을 수 없음",
+                description = "유효성 검사 실패, 부모 카테고리를 찾을 수 없음, 또는 자기 자신을 부모로 지정함",
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/{id}")
