@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-@Tag(name = "Category", description = "카테고리 조회/생성 API")
+@Tag(name = "Category", description = "카테고리 조회/생성/수정/삭제 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/categories")
@@ -92,5 +92,21 @@ public class CategoryController {
                     CategoryUpdateRequest request) {
         CategoryResponse response = categoryService.updateById(id, request);
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @Operation(summary = "카테고리 제거", description = "카테고리를 제거합니다. 하위 카테고리가 있으면 함께 제거됩니다.")
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "제거 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                responseCode = "404",
+                description = "카테고리를 찾을 수 없음",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 ID")
+    })
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @Parameter(description = "카테고리 ID", required = true) @PathVariable UUID id) {
+        categoryService.deleteById(id);
+        return ResponseEntity.ok(ApiResponse.ok(null));
     }
 }

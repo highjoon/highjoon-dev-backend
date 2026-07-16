@@ -199,4 +199,31 @@ public class CategoryServiceTest {
         assertThat(response.parentId()).isNull();
         assertThat(response.title()).isEqualTo("title");
     }
+
+    @Test
+    void delete_withValidRequest_shouldRemoveCategory() {
+        // Given
+        UUID id = UUID.randomUUID();
+        Category category = Category.create("title", null);
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(category));
+
+        // When
+        categoryService.deleteById(id);
+
+        // Then
+        verify(categoryRepository).delete(category);
+
+    }
+
+    @Test
+    void delete_withNonExistentId_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+
+        // When
+        when( categoryRepository.findById(id)).thenReturn(Optional.empty());
+
+        // Then
+        assertThatThrownBy(() -> categoryService.deleteById(id)).isInstanceOf(CategoryNotFoundException.class);
+    }
 }

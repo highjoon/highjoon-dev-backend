@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -201,5 +202,26 @@ public class CategoryControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void delete_shouldReturn200() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        mockMvc.perform(delete("/api/v1/categories/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+    }
+
+    @Test
+    void delete_whenNotFound_shouldReturn404() throws Exception {
+        UUID id = UUID.randomUUID();
+        doThrow(new CategoryNotFoundException(id)).when(categoryService).deleteById(id);
+
+        mockMvc.perform(delete("/api/v1/categories/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("CATEGORY_NOT_FOUND"));
     }
 }

@@ -52,6 +52,12 @@ public class CategoryService {
         return CategoryResponse.from(category);
     }
 
+    @Transactional
+    public void deleteById(UUID id) {
+        Category category = categoryRepository.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
+        categoryRepository.delete(category);
+    }
+
     private Category resolveParent(UUID parentId) {
         if (parentId == null) {
             return null;

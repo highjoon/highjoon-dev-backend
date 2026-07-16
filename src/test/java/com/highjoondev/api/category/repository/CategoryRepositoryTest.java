@@ -29,4 +29,34 @@ public class CategoryRepositoryTest {
         assertThat(category.getId()).isNotNull();
         assertThat(category.getCreatedAt()).isNotNull();
     }
+
+    @Test
+    void delete_withValidCategory_shouldBeDeleted() {
+        // Given
+        Category category = Category.create("title", null);
+        categoryRepository.saveAndFlush(category);
+
+        // When
+        categoryRepository.delete(category);
+
+        // Then
+        assertThat(categoryRepository.findById(category.getId())).isEmpty();
+    }
+
+    @Test
+    void delete_withChildren_shouldCascadeDeleteChildren() {
+        // Given
+        Category parent = Category.create("parent", null);
+        Category child = Category.create("child", parent);
+        categoryRepository.saveAndFlush(parent);
+        categoryRepository.saveAndFlush(child);
+
+        // When
+        categoryRepository.delete(parent);
+        categoryRepository.flush();
+
+        // Then
+        assertThat(categoryRepository.findById(parent.getId())).isEmpty();
+        assertThat(categoryRepository.findById(child.getId())).isEmpty();
+    }
 }
