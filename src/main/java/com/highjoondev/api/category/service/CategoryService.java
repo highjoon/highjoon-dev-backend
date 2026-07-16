@@ -7,6 +7,7 @@ import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
+import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,8 +24,12 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponse create(CategoryCreateRequest request) {
+        if (categoryRepository.existsBySlug(request.slug())) {
+            throw new DuplicatedCategorySlugException(request.slug());
+        }
+
         Category parent = resolveParent(request.parentId());
-        Category category = Category.create(request.title(), parent);
+        Category category = Category.create(request.title(), request.slug(), parent);
         categoryRepository.save(category);
 
         return CategoryResponse.from(category);
@@ -44,10 +49,13 @@ public class CategoryService {
         if (id.equals(request.parentId())) {
             throw new CategoryInvalidParentException(id);
         }
+        if (categoryRepository.existsBySlugAndIdNot(request.slug(), id)) {
+            throw new DuplicatedCategorySlugException(request.slug());
+        }
 
         Category category = categoryRepository.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
         Category parent = resolveParent(request.parentId());
-        category.update(request.title(), parent);
+        category.update(request.title(), request.slug(), parent);
 
         return CategoryResponse.from(category);
     }

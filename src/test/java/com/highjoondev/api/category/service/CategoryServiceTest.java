@@ -7,6 +7,7 @@ import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
+import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,7 +38,7 @@ public class CategoryServiceTest {
     @Test
     void create_withValidRequest_shouldReturnCategoryResponse() {
         // Given
-        var request = new CategoryCreateRequest("title", null);
+        var request = new CategoryCreateRequest("title", "slug", null);
 
         // When
         CategoryResponse response = categoryService.create(request);
@@ -50,10 +51,21 @@ public class CategoryServiceTest {
     @Test
     void create_withNonExistentParentId_shouldThrowException() {
         // Given
-        var request = new CategoryCreateRequest("title", UUID.randomUUID());
+        var request = new CategoryCreateRequest("title", "slug", UUID.randomUUID());
         when(categoryRepository.findById(request.parentId())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> categoryService.create(request)).isInstanceOf(CategoryParentNotFoundException.class);
+    }
+
+    @Test
+    void create_withDuplicateSlug_shouldThrowException() {
+        // Given
+        var request = new CategoryCreateRequest("title", "slug", null);
+        when(categoryRepository.existsBySlug("slug")).thenReturn(true);
+
+        // When, Then
+        assertThatThrownBy(() -> categoryService.create(request))
+                .isInstanceOf(DuplicatedCategorySlugException.class);
     }
 
     @Test
@@ -71,7 +83,7 @@ public class CategoryServiceTest {
     void findById_whenCategoryFound_shouldReturnCategoryResponse() {
         // Given
         UUID id = UUID.randomUUID();
-        Category category = Category.create("title", null);
+        Category category = Category.create("title", "slug", null);
         when(categoryRepository.findById(id)).thenReturn(Optional.of(category));
 
         // When
@@ -85,7 +97,7 @@ public class CategoryServiceTest {
     @Test
     void findAll_shouldReturnAllCategories() {
         // Given
-        Category category = Category.create("title", null);
+        Category category = Category.create("title", "slug", null);
         when(categoryRepository.findAll()).thenReturn(List.of(category));
 
         // When
@@ -112,8 +124,8 @@ public class CategoryServiceTest {
     void create_withParentId_shouldSaveWithParentId() {
         // Given
         UUID parentId = UUID.randomUUID();
-        var request = new CategoryCreateRequest("title", parentId);
-        Category parentCategory = Category.create("parent", null);
+        var request = new CategoryCreateRequest("title", "slug", parentId);
+        Category parentCategory = Category.create("parent", "parent-slug", null);
         ReflectionTestUtils.setField(parentCategory, "id", parentId);
         when(categoryRepository.findById(parentId)).thenReturn(Optional.of(parentCategory));
 
@@ -129,12 +141,12 @@ public class CategoryServiceTest {
         // Given
         UUID id = UUID.randomUUID();
         UUID parentId = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("title", parentId);
+        var request = new CategoryUpdateRequest("title", "slug", parentId);
 
-        Category targetCategory = Category.create("old title", null);
+        Category targetCategory = Category.create("old title", "old-slug", null);
         when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
 
-        Category parentCategory = Category.create("parent", null);
+        Category parentCategory = Category.create("parent", "parent-slug", null);
         ReflectionTestUtils.setField(parentCategory, "id", parentId);
         when(categoryRepository.findById(parentId)).thenReturn(Optional.of(parentCategory));
 
@@ -150,7 +162,7 @@ public class CategoryServiceTest {
         // Given
         UUID id = UUID.randomUUID();
         UUID parentId = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("title", parentId);
+        var request = new CategoryUpdateRequest("title", "slug", parentId);
 
         // When, Then
         assertThatThrownBy(() -> categoryService.updateById(id, request)).isInstanceOf(CategoryNotFoundException.class);
@@ -161,9 +173,9 @@ public class CategoryServiceTest {
         // Given
         UUID id = UUID.randomUUID();
         UUID parentId = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("title", parentId);
+        var request = new CategoryUpdateRequest("title", "slug", parentId);
 
-        Category targetCategory = Category.create("old title", null);
+        Category targetCategory = Category.create("old title", "old-slug", null);
         when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
         when(categoryRepository.findById(parentId)).thenReturn(Optional.empty());
 
@@ -176,7 +188,7 @@ public class CategoryServiceTest {
     void update_withSelfAsParentId_shouldThrowException() {
         // Given
         UUID id = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("title", id);
+        var request = new CategoryUpdateRequest("title", "slug", id);
 
         // When, Then
         assertThatThrownBy(() -> categoryService.updateById(id, request))
@@ -184,12 +196,24 @@ public class CategoryServiceTest {
     }
 
     @Test
+    void update_withDuplicateSlug_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", "slug", null);
+        when(categoryRepository.existsBySlugAndIdNot("slug", id)).thenReturn(true);
+
+        // When, Then
+        assertThatThrownBy(() -> categoryService.updateById(id, request))
+                .isInstanceOf(DuplicatedCategorySlugException.class);
+    }
+
+    @Test
     void update_withNullParentId_shouldRemoveParent() {
         // Given
         UUID id = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("title", null);
+        var request = new CategoryUpdateRequest("title", "slug", null);
 
-        Category targetCategory = Category.create("old title", null);
+        Category targetCategory = Category.create("old title", "old-slug", null);
         when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
 
         // When
@@ -204,7 +228,7 @@ public class CategoryServiceTest {
     void delete_withValidRequest_shouldRemoveCategory() {
         // Given
         UUID id = UUID.randomUUID();
-        Category category = Category.create("title", null);
+        Category category = Category.create("title", "slug", null);
         when(categoryRepository.findById(id)).thenReturn(Optional.of(category));
 
         // When

@@ -7,6 +7,7 @@ import com.highjoondev.api.category.dto.CategoryUpdateRequest;
 import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
+import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.category.service.CategoryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,8 +40,8 @@ public class CategoryControllerTest {
     @Test
     void create_withValidRequest_shouldReturn201() throws Exception {
         // Given
-        var request = new CategoryCreateRequest("title", null);
-        var response = new CategoryResponse(UUID.randomUUID(), "title", null, Instant.now());
+        var request = new CategoryCreateRequest("title", "slug", null);
+        var response = new CategoryResponse(UUID.randomUUID(), "title", "slug", null, Instant.now());
         when(categoryService.create(request)).thenReturn(response);
 
         // When / Then
@@ -54,7 +55,7 @@ public class CategoryControllerTest {
 
     @Test
     void create_withBlankTitle_shouldReturn400() throws Exception {
-        var request = new CategoryCreateRequest("", null);
+        var request = new CategoryCreateRequest("", "slug", null);
 
         mockMvc.perform(post("/api/v1/categories")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -67,7 +68,7 @@ public class CategoryControllerTest {
     @Test
     void create_withNonExistentParentId_shouldReturn400() throws Exception {
         UUID parentId = UUID.randomUUID();
-        var request = new CategoryCreateRequest("title", parentId);
+        var request = new CategoryCreateRequest("title", "slug", parentId);
         when(categoryService.create(request)).thenThrow(new CategoryParentNotFoundException(parentId));
 
         mockMvc.perform(post("/api/v1/categories")
@@ -76,6 +77,19 @@ public class CategoryControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("CATEGORY_PARENT_NOT_FOUND"));
+    }
+
+    @Test
+    void create_withDuplicateSlug_shouldReturn409() throws Exception {
+        var request = new CategoryCreateRequest("title", "slug", null);
+        when(categoryService.create(request)).thenThrow(new DuplicatedCategorySlugException("slug"));
+
+        mockMvc.perform(post("/api/v1/categories")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("DUPLICATED_SLUG"));
     }
 
     @Test
@@ -92,7 +106,7 @@ public class CategoryControllerTest {
     @Test
     void findById_whenFound_shouldReturn200() throws Exception {
         UUID id = UUID.randomUUID();
-        var response = new CategoryResponse(id, "title", null, Instant.now());
+        var response = new CategoryResponse(id, "title", "slug", null, Instant.now());
         when(categoryService.findById(id)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/categories/{id}", id))
@@ -112,7 +126,7 @@ public class CategoryControllerTest {
 
     @Test
     void findAll_shouldReturn200WithCategories() throws Exception {
-        var response = new CategoryResponse(UUID.randomUUID(), "title", null, Instant.now());
+        var response = new CategoryResponse(UUID.randomUUID(), "title", "slug", null, Instant.now());
         when(categoryService.findAll()).thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/categories"))
@@ -136,9 +150,9 @@ public class CategoryControllerTest {
     void update_shouldReturn200() throws Exception {
         UUID id = UUID.randomUUID();
         UUID parentId = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("title", parentId);
+        var request = new CategoryUpdateRequest("title", "slug", parentId);
         when(categoryService.updateById(id, request))
-                .thenReturn(new CategoryResponse(id, "title", parentId, Instant.now()));
+                .thenReturn(new CategoryResponse(id, "title", "slug", parentId, Instant.now()));
 
         mockMvc.perform(put("/api/v1/categories/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -151,7 +165,7 @@ public class CategoryControllerTest {
     @Test
     void update_whenInvalidId_shouldReturn404() throws Exception {
         UUID id = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("title", id);
+        var request = new CategoryUpdateRequest("title", "slug", id);
         when(categoryService.updateById(id, request)).thenThrow(new CategoryNotFoundException(id));
 
         mockMvc.perform(put("/api/v1/categories/{id}", id)
@@ -166,7 +180,7 @@ public class CategoryControllerTest {
     void update_whenInvalidParentId_shouldReturn400() throws Exception {
         UUID id = UUID.randomUUID();
         UUID parentId = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("title", parentId);
+        var request = new CategoryUpdateRequest("title", "slug", parentId);
         when(categoryService.updateById(id, request)).thenThrow(new CategoryParentNotFoundException(parentId));
 
         mockMvc.perform(put("/api/v1/categories/{id}", id)
@@ -180,7 +194,7 @@ public class CategoryControllerTest {
     @Test
     void update_whenSelfAsParentId_shouldReturn400() throws Exception {
         UUID id = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("title", id);
+        var request = new CategoryUpdateRequest("title", "slug", id);
         when(categoryService.updateById(id, request)).thenThrow(new CategoryInvalidParentException(id));
 
         mockMvc.perform(put("/api/v1/categories/{id}", id)
@@ -194,7 +208,7 @@ public class CategoryControllerTest {
     @Test
     void update_whenInvalidTitle_shouldReturn400() throws Exception {
         UUID id = UUID.randomUUID();
-        var request = new CategoryUpdateRequest("", null);
+        var request = new CategoryUpdateRequest("", "slug", null);
 
         mockMvc.perform(put("/api/v1/categories/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -202,6 +216,20 @@ public class CategoryControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void update_withDuplicateSlug_shouldReturn409() throws Exception {
+        UUID id = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", "slug", null);
+        when(categoryService.updateById(id, request)).thenThrow(new DuplicatedCategorySlugException("slug"));
+
+        mockMvc.perform(put("/api/v1/categories/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("DUPLICATED_SLUG"));
     }
 
     @Test

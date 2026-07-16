@@ -35,7 +35,11 @@ public class CategoryController {
                 responseCode = "201",
                 description = "생성 성공",
                 content = @Content(schema = @Schema(implementation = CategoryResponse.class))),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효성 검사 실패")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "유효성 검사 실패"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                responseCode = "409",
+                description = "중복된 slug",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping
     public ResponseEntity<ApiResponse<CategoryResponse>> create(@Valid @RequestBody CategoryCreateRequest request) {
@@ -83,6 +87,10 @@ public class CategoryController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "400",
                 description = "유효성 검사 실패, 부모 카테고리를 찾을 수 없음, 또는 자기 자신을 부모로 지정함",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                responseCode = "409",
+                description = "중복된 slug",
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/{id}")

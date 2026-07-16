@@ -3,6 +3,7 @@ package com.highjoondev.api.global.exception;
 import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
+import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.global.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleCategoryInvalidParentException(
             CategoryInvalidParentException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(exception.getErrorCode().code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicatedCategorySlugException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicatedCategorySlugException(
+            DuplicatedCategorySlugException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(exception.getErrorCode().code(), exception.getMessage()));
     }
 

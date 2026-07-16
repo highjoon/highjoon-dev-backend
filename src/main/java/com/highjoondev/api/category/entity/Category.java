@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
+@Table(indexes = @Index(name = "idx_category_parent_id", columnList = "parent_id"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Category {
@@ -23,6 +24,9 @@ public class Category {
 
     @Column(nullable = false)
     private String title;
+
+    @Column(nullable = false, unique = true)
+    private String slug;
 
     @ManyToOne(fetch = FetchType.LAZY)
     private Category parent;
@@ -37,9 +41,10 @@ public class Category {
     @UpdateTimestamp
     private Instant updatedAt;
 
-    public static Category create(String title, Category parentCategory) {
+    public static Category create(String title, String slug, Category parentCategory) {
         Category newCategory = new Category();
         newCategory.title = title;
+        newCategory.slug = slug;
         newCategory.parent = parentCategory;
         if (parentCategory != null) {
             parentCategory.children.add(newCategory);
@@ -47,8 +52,9 @@ public class Category {
         return newCategory;
     }
 
-    public void update(String title, Category newParent) {
+    public void update(String title, String slug, Category newParent) {
         this.title = title;
+        this.slug = slug;
         if (this.parent != null) {
             this.parent.children.remove(this);
         }

@@ -7,8 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
+
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -20,7 +24,7 @@ public class CategoryRepositoryTest {
     @Test
     void save_withValidCategory_shouldPersistAndBeRetrievable() {
         // Given
-        Category category = Category.create("title", null);
+        Category category = Category.create("title", "title", null);
 
         // When
         categoryRepository.saveAndFlush(category);
@@ -31,9 +35,41 @@ public class CategoryRepositoryTest {
     }
 
     @Test
+    void save_withDuplicateSlug_shouldThrowException() {
+        // Given
+        categoryRepository.saveAndFlush(Category.create("title", "slug", null));
+        Category duplicate = Category.create("other title", "slug", null);
+
+        // When, Then
+        assertThatThrownBy(() -> categoryRepository.saveAndFlush(duplicate))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void existsBySlug_withExistingSlug_shouldReturnTrue() {
+        // Given
+        categoryRepository.saveAndFlush(Category.create("title", "slug", null));
+
+        // When, Then
+        assertThat(categoryRepository.existsBySlug("slug")).isTrue();
+        assertThat(categoryRepository.existsBySlug("other-slug")).isFalse();
+    }
+
+    @Test
+    void existsBySlugAndIdNot_withOwnSlug_shouldReturnFalse() {
+        // Given
+        Category category = Category.create("title", "slug", null);
+        categoryRepository.saveAndFlush(category);
+
+        // When, Then
+        assertThat(categoryRepository.existsBySlugAndIdNot("slug", category.getId())).isFalse();
+        assertThat(categoryRepository.existsBySlugAndIdNot("slug", UUID.randomUUID())).isTrue();
+    }
+
+    @Test
     void delete_withValidCategory_shouldBeDeleted() {
         // Given
-        Category category = Category.create("title", null);
+        Category category = Category.create("title", "title", null);
         categoryRepository.saveAndFlush(category);
 
         // When
@@ -46,8 +82,8 @@ public class CategoryRepositoryTest {
     @Test
     void delete_withChildren_shouldCascadeDeleteChildren() {
         // Given
-        Category parent = Category.create("parent", null);
-        Category child = Category.create("child", parent);
+        Category parent = Category.create("parent", "parent", null);
+        Category child = Category.create("child", "child", parent);
         categoryRepository.saveAndFlush(parent);
         categoryRepository.saveAndFlush(child);
 
