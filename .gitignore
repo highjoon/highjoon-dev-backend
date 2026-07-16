@@ -38,3 +38,9 @@ out/
 
 # 로컬 머신 전용 JDK 경로
 gradle.properties
+
+application-*.properties
+application-*.yml
+application-*.yaml
+.env
+.env.*
