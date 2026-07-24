@@ -1,7 +1,6 @@
 package com.highjoondev.api.global.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import java.time.Instant;
 
 @Schema(name = "ErrorResponse", description = "에러 응답")

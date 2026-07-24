@@ -1,5 +1,11 @@
 package com.highjoondev.api.category.controller;
 
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
@@ -9,22 +15,15 @@ import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.category.service.CategoryService;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CategoryController.class)
 public class CategoryControllerTest {
@@ -239,7 +238,6 @@ public class CategoryControllerTest {
         mockMvc.perform(delete("/api/v1/categories/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
-
     }
 
     @Test

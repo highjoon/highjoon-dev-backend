@@ -1,5 +1,11 @@
 package com.highjoondev.api.category.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.dto.CategoryUpdateRequest;
@@ -9,22 +15,15 @@ import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.category.repository.CategoryRepository;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class CategoryServiceTest {
@@ -64,8 +63,7 @@ public class CategoryServiceTest {
         when(categoryRepository.existsBySlug("slug")).thenReturn(true);
 
         // When, Then
-        assertThatThrownBy(() -> categoryService.create(request))
-                .isInstanceOf(DuplicatedCategorySlugException.class);
+        assertThatThrownBy(() -> categoryService.create(request)).isInstanceOf(DuplicatedCategorySlugException.class);
     }
 
     @Test
@@ -236,7 +234,6 @@ public class CategoryServiceTest {
 
         // Then
         verify(categoryRepository).delete(category);
-
     }
 
     @Test
@@ -245,7 +242,7 @@ public class CategoryServiceTest {
         UUID id = UUID.randomUUID();
 
         // When
-        when( categoryRepository.findById(id)).thenReturn(Optional.empty());
+        when(categoryRepository.findById(id)).thenReturn(Optional.empty());
 
         // Then
         assertThatThrownBy(() -> categoryService.deleteById(id)).isInstanceOf(CategoryNotFoundException.class);

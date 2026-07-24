@@ -1,18 +1,17 @@
 package com.highjoondev.api.category.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.highjoondev.api.TestcontainersConfig;
 import com.highjoondev.api.category.entity.Category;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
-
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -62,8 +61,10 @@ public class CategoryRepositoryTest {
         categoryRepository.saveAndFlush(category);
 
         // When, Then
-        assertThat(categoryRepository.existsBySlugAndIdNot("slug", category.getId())).isFalse();
-        assertThat(categoryRepository.existsBySlugAndIdNot("slug", UUID.randomUUID())).isTrue();
+        assertThat(categoryRepository.existsBySlugAndIdNot("slug", category.getId()))
+                .isFalse();
+        assertThat(categoryRepository.existsBySlugAndIdNot("slug", UUID.randomUUID()))
+                .isTrue();
     }
 
     @Test

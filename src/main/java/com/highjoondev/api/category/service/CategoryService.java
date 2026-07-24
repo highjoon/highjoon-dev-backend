@@ -70,7 +70,6 @@ public class CategoryService {
         if (parentId == null) {
             return null;
         }
-        return categoryRepository.findById(parentId)
-                .orElseThrow(() -> new CategoryParentNotFoundException(parentId));
+        return categoryRepository.findById(parentId).orElseThrow(() -> new CategoryParentNotFoundException(parentId));
     }
 }

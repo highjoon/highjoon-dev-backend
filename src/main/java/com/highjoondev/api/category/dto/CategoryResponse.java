@@ -1,7 +1,6 @@
 package com.highjoondev.api.category.dto;
 
 import com.highjoondev.api.category.entity.Category;
-
 import java.time.Instant;
 import java.util.UUID;
 

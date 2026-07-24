@@ -1,9 +1,8 @@
 package com.highjoondev.api.category.exception;
 
 import com.highjoondev.api.global.exception.ErrorCode;
-import lombok.Getter;
-
 import java.util.UUID;
+import lombok.Getter;
 
 @Getter
 public class CategoryNotFoundException extends RuntimeException {
