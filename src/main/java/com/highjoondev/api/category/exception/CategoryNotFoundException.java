@@ -9,7 +9,7 @@ public class CategoryNotFoundException extends RuntimeException {
     private final ErrorCode errorCode;
 
     public CategoryNotFoundException(UUID id) {
-        super(ErrorCode.CATEGORY_NOT_FOUND.message(id));
-        this.errorCode = ErrorCode.CATEGORY_NOT_FOUND;
+        super(CategoryErrorCode.NOT_FOUND.message(id));
+        this.errorCode = CategoryErrorCode.NOT_FOUND;
     }
 }

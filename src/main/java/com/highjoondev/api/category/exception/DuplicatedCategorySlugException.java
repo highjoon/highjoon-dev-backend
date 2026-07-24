@@ -8,7 +8,7 @@ public class DuplicatedCategorySlugException extends RuntimeException {
     private final ErrorCode errorCode;
 
     public DuplicatedCategorySlugException(String slug) {
-        super(ErrorCode.DUPLICATED_SLUG.message(slug));
-        this.errorCode = ErrorCode.DUPLICATED_SLUG;
+        super(CategoryErrorCode.DUPLICATED_SLUG.message(slug));
+        this.errorCode = CategoryErrorCode.DUPLICATED_SLUG;
     }
 }
