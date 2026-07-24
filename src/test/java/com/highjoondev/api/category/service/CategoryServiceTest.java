@@ -1,11 +1,5 @@
 package com.highjoondev.api.category.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.dto.CategoryUpdateRequest;
@@ -15,15 +9,21 @@ import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.category.repository.CategoryRepository;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class CategoryServiceTest {
@@ -142,6 +142,7 @@ public class CategoryServiceTest {
         var request = new CategoryUpdateRequest("title", "slug", parentId);
 
         Category targetCategory = Category.create("old title", "old-slug", null);
+        ReflectionTestUtils.setField(targetCategory, "id", id);
         when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
 
         Category parentCategory = Category.create("parent", "parent-slug", null);
@@ -161,6 +162,17 @@ public class CategoryServiceTest {
         UUID id = UUID.randomUUID();
         UUID parentId = UUID.randomUUID();
         var request = new CategoryUpdateRequest("title", "slug", parentId);
+
+        // When, Then
+        assertThatThrownBy(() -> categoryService.updateById(id, request)).isInstanceOf(CategoryNotFoundException.class);
+    }
+
+    @Test
+    void update_withNonExistentIdAndDuplicateSlug_shouldThrowNotFound() {
+        // Given: 존재하지 않는 id인데 slug는 중복 → 존재확인이 먼저이므로 404가 나와야 함
+        UUID id = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", "slug", null);
+        lenient().when(categoryRepository.existsBySlugAndIdNot("slug", id)).thenReturn(true);
 
         // When, Then
         assertThatThrownBy(() -> categoryService.updateById(id, request)).isInstanceOf(CategoryNotFoundException.class);
@@ -188,8 +200,32 @@ public class CategoryServiceTest {
         UUID id = UUID.randomUUID();
         var request = new CategoryUpdateRequest("title", "slug", id);
 
+        Category targetCategory = Category.create("old title", "old-slug", null);
+        ReflectionTestUtils.setField(targetCategory, "id", id);
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
+
         // When, Then
         assertThatThrownBy(() -> categoryService.updateById(id, request))
+                .isInstanceOf(CategoryInvalidParentException.class);
+    }
+
+    @Test
+    void update_withDescendantAsParentId_shouldThrowException() {
+        // Given
+        UUID rootId = UUID.randomUUID();
+        UUID childId = UUID.randomUUID();
+        var request = new CategoryUpdateRequest("title", "slug", childId);
+
+        Category root = Category.create("root", "root-slug", null);
+        ReflectionTestUtils.setField(root, "id", rootId);
+        Category child = Category.create("child", "child-slug", root);
+        ReflectionTestUtils.setField(child, "id", childId);
+
+        when(categoryRepository.findById(rootId)).thenReturn(Optional.of(root));
+        when(categoryRepository.findById(childId)).thenReturn(Optional.of(child));
+
+        // When, Then
+        assertThatThrownBy(() -> categoryService.updateById(rootId, request))
                 .isInstanceOf(CategoryInvalidParentException.class);
     }
 
@@ -198,6 +234,10 @@ public class CategoryServiceTest {
         // Given
         UUID id = UUID.randomUUID();
         var request = new CategoryUpdateRequest("title", "slug", null);
+
+        Category targetCategory = Category.create("old title", "old-slug", null);
+        ReflectionTestUtils.setField(targetCategory, "id", id);
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
         when(categoryRepository.existsBySlugAndIdNot("slug", id)).thenReturn(true);
 
         // When, Then

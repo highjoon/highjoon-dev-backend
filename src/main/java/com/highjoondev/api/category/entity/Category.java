@@ -1,15 +1,17 @@
 package com.highjoondev.api.category.entity;
 
+import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import jakarta.persistence.*;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(indexes = @Index(name = "idx_category_parent_id", columnList = "parent_id"))
@@ -52,6 +54,10 @@ public class Category {
     }
 
     public void update(String title, String slug, Category newParent) {
+        if (newParent != null && wouldCycleWith(newParent)) {
+            throw new CategoryInvalidParentException(this.id);
+        }
+
         this.title = title;
         this.slug = slug;
         if (this.parent != null) {
@@ -61,5 +67,14 @@ public class Category {
         if (newParent != null) {
             newParent.children.add(this);
         }
+    }
+
+    private boolean wouldCycleWith(Category newParent) {
+        for (Category cursor = newParent; cursor != null; cursor = cursor.getParent()) {
+            if (this.id.equals(cursor.getId())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
