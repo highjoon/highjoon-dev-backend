@@ -13,12 +13,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @Tag(name = "Category", description = "카테고리 조회/생성/수정/삭제 API")
 @RestController
@@ -43,7 +44,11 @@ public class CategoryController {
     @PostMapping
     public ResponseEntity<ApiResult<CategoryResponse>> create(@Valid @RequestBody CategoryCreateRequest request) {
         CategoryResponse response = categoryService.create(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResult.ok(response));
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(response.id())
+                .toUri();
+        return ResponseEntity.created(location).body(ApiResult.ok(response));
     }
 
     @Operation(summary = "카테고리 목록 조회", description = "카테고리 목록을 조회합니다.")
@@ -54,8 +59,8 @@ public class CategoryController {
                 content = @Content(schema = @Schema(implementation = CategoryResponse.class)))
     })
     @GetMapping
-    public ApiResult<List<CategoryResponse>> findAll() {
-        return ApiResult.ok(categoryService.findAll());
+    public ResponseEntity<ApiResult<List<CategoryResponse>>> findAll() {
+        return ResponseEntity.ok(ApiResult.ok(categoryService.findAll()));
     }
 
     @Operation(summary = "카테고리 단건 조회", description = "ID로 카테고리를 조회합니다.")
@@ -68,9 +73,9 @@ public class CategoryController {
         @ApiResponse(responseCode = "400", description = "잘못된 ID")
     })
     @GetMapping("/{id}")
-    public ApiResult<CategoryResponse> findById(
+    public ResponseEntity<ApiResult<CategoryResponse>> findById(
             @Parameter(description = "카테고리 ID", required = true) @PathVariable UUID id) {
-        return ApiResult.ok(categoryService.findById(id));
+        return ResponseEntity.ok(ApiResult.ok(categoryService.findById(id)));
     }
 
     @Operation(summary = "카테고리 업데이트", description = "카테고리를 업데이트합니다.")
