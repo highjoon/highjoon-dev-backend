@@ -51,7 +51,9 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResult.error(
-                        CommonErrorCode.VALIDATION_FAILED.code(), CommonErrorCode.VALIDATION_FAILED.message(), details));
+                        CommonErrorCode.VALIDATION_FAILED.code(),
+                        CommonErrorCode.VALIDATION_FAILED.message(),
+                        details));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -59,6 +61,7 @@ public class GlobalExceptionHandler {
             MethodArgumentTypeMismatchException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResult.error(
-                        CommonErrorCode.INVALID_PARAMETER.code(), CommonErrorCode.INVALID_PARAMETER.message(exception.getName())));
+                        CommonErrorCode.INVALID_PARAMETER.code(),
+                        CommonErrorCode.INVALID_PARAMETER.message(exception.getName())));
     }
 }

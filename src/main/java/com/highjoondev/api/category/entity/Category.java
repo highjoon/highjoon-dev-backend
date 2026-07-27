@@ -2,16 +2,15 @@ package com.highjoondev.api.category.entity;
 
 import com.highjoondev.api.category.exception.CategoryInvalidParentException;
 import jakarta.persistence.*;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(indexes = @Index(name = "idx_category_parent_id", columnList = "parent_id"))
