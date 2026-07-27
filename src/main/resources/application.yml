@@ -1,18 +1,11 @@
 spring:
   application:
     name: highjoon-dev-backend
-  datasource:
-    url: jdbc:postgresql://localhost:5432/highjoon_dev
-    username: highjoon
-    password: highjoon
-    driver-class-name: org.postgresql.Driver
+  config:
+    import: optional:file:application-local.yml
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+      ddl-auto: validate
 
 management:
   endpoints:
