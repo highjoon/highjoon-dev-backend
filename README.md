@@ -12,14 +12,14 @@
 - JDK 21 (`gradle.properties`)
 - Docker (`Testcontainers` + `Postgres`에서만 사용)
 - DB 접속 정보는 프로젝트 루트의 `application-local.yml`에서 관리 (gitignore)
-- Neon `development` 브랜치를 가리킴. `production`은 배포 전용
-    - 콘솔 Connect의 기본 선택이 `production`이므로 브랜치를 바꿔서 복사
+- Neon `development` 브랜치를 가리킴. `main`은 배포 전용
+    - 콘솔 Connect의 기본 선택이 `main`이므로 브랜치를 바꿔서 복사
 - Neon 콘솔 문자열은 세 곳 수정 필요: `jdbc:` 접두사 추가, `channel_binding=require` 제거, 호스트의 `-pooler` 제거
 
 ```yaml
 spring:
   datasource:
-    url: jdbc:postgresql://<endpoint>.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+    url: jdbc:postgresql://<endpoint>.us-west-2.aws.neon.tech/neondb?sslmode=require
     username: <role>
     password: <password>
   jpa:
