@@ -1,0 +1,22 @@
+services:
+  # 서비스 이름. 컨테이너명은 자동 생성
+  app:
+    # GHCR 이미지. IMAGE_TAG 는 .env.deploy 가 지정, 없으면 latest 이미지 사용
+    image: ghcr.io/highjoon/highjoon-dev-backend:${IMAGE_TAG:-latest}
+    # stop으로 명시적으로 멈추지 않는 한 죽으면 계속 재시작
+    restart: unless-stopped
+    # 127.0.0.1 바인딩. VM 내부에서만 접근 가능, 외부는 Nginx를 거쳐야 함
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - .env
+    # 컨테이너가 쓸 수 있는 최대 메모리
+    mem_limit: 640m
+    # 앱의 헬스체크 엔드포인트를 주기적으로 확인
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+      start_interval: 5s

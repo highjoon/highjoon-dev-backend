@@ -7,6 +7,13 @@ spring:
     hibernate:
       ddl-auto: validate
 
+server:
+  forward-headers-strategy: native
+
+app:
+  cors:
+    allowed-origins: https://www.highjoon-dev.com,https://highjoon-dev.com,http://localhost:3000
+
 management:
   endpoints:
     web:
