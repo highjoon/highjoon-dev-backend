@@ -4,6 +4,7 @@ spring:
   config:
     import: optional:file:application-local.yml
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
 
