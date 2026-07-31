@@ -45,7 +45,7 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.IMAGE_NAME }}:latest
 
-      - name: SSH 준비
+      - name: Prepare SSH
         env:
           VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
           VM_SSH_HOST_KEY: ${{ secrets.VM_SSH_HOST_KEY }}
@@ -62,7 +62,7 @@ jobs:
           fi
           chmod 600 ~/.ssh/known_hosts
 
-      - name: compose.yml 동기화
+      - name: Sync compose.yml
         env:
           VM_USER: ${{ secrets.VM_USER }}
           VM_HOST: ${{ secrets.VM_HOST }}
@@ -71,7 +71,7 @@ jobs:
             'cp /opt/highjoon-dev/compose.yml /opt/highjoon-dev/compose.yml.prev 2>/dev/null || true'
           scp compose.yml "$VM_USER@$VM_HOST:/opt/highjoon-dev/compose.yml"
 
-      - name: 배포
+      - name: Deploy
         id: deploy
         timeout-minutes: 10
         env:
@@ -101,7 +101,7 @@ jobs:
             docker image prune -f
           EOF
 
-      - name: 기동 확인
+      - name: Health check
         id: healthcheck
         run: |
           for i in $(seq 1 30); do
@@ -112,7 +112,7 @@ jobs:
           done
           exit 1
 
-      - name: 롤백
+      - name: Rollback
         if: failure() && (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure')
         env:
           VM_USER: ${{ secrets.VM_USER }}
