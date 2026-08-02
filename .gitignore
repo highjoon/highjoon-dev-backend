@@ -36,6 +36,12 @@ out/
 ### VS Code ###
 .vscode/
 
+### Claude Code ###
+.claude/worktrees/
+
+# 작업 참고용 로컬 자료
+docs/
+
 # 로컬 머신 전용 JDK 경로
 gradle.properties
 
