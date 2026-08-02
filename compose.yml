@@ -12,6 +12,12 @@ services:
       - .env
     # 컨테이너가 쓸 수 있는 최대 메모리
     mem_limit: 640m
+    # 로그 파일 크기 제한. 10m 파일 3개까지 보관
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     # 앱의 헬스체크 엔드포인트를 주기적으로 확인
     healthcheck:
       test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health" ]
@@ -20,3 +26,24 @@ services:
       retries: 5
       start_period: 180s
       start_interval: 5s
+
+  # 컨테이너 로그 파일을 읽어서 Cloud Logging으로 전송
+  fluent-bit:
+    # 이미지 태그 고정
+    image: fluent/fluent-bit:3.2
+    restart: unless-stopped
+    mem_limit: 64m
+    volumes:
+      # Docker 가 쓴 로그 파일. :ro (읽기 전용)
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # 설정 파일. 배포할 때마다 갱신
+      - /opt/highjoon-dev/fluent-bit:/fluent-bit/etc:ro
+      # 어디까지 읽었는지 기록. 앱 재시작 시 중복 전송을 막기 위함
+      - flb-state:/var/log/flb
+    # Fluent Bit 자기 로그는 기록하지 않음
+    logging:
+      driver: "none"
+
+# 컨테이너와 별개로 유지되는 볼륨 마운트
+volumes:
+  flb-state:
