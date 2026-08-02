@@ -1,0 +1,16 @@
+# 이미지에 필요한 건 build/libs 의 실행 jar 하나뿐이다.
+# 큰 것들만 명시적으로 제외한다. `*` 뒤에 `!` 로 되살리는 방식은
+# 중첩 경로에서 동작이 미묘해 빌드가 깨질 여지가 있어 쓰지 않는다.
+.git
+.gradle
+.github
+build/classes
+build/reports
+build/test-results
+build/tmp
+build/resources
+src
+docs
+deploy
+gradle
+*.md
