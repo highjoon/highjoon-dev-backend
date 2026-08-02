@@ -1,5 +1,6 @@
 package com.highjoondev.api.global.logging;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.mockito.Mockito.when;
@@ -46,5 +47,29 @@ public class RequestLoggingFilterTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string(
                                 "Access-Control-Expose-Headers", containsString(RequestLoggingFilter.TRACE_ID_HEADER)));
+    }
+
+    @Test
+    void maskIp_shouldRemoveLastOctet() {
+        assertThat(RequestLoggingFilter.maskIp("192.168.1.123")).isEqualTo("192.168.1.0");
+    }
+
+    @Test
+    void maskIp_whenNull_shouldReturnPlaceholder() {
+        assertThat(RequestLoggingFilter.maskIp(null)).isEqualTo("-");
+    }
+
+    @Test
+    void truncate_whenWithinLimit_shouldKeepAsIs() {
+        String userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)";
+
+        assertThat(RequestLoggingFilter.truncate(userAgent)).isEqualTo(userAgent);
+    }
+
+    @Test
+    void truncate_whenLongerThanLimit_shouldCutAndMark() {
+        String userAgent = "a".repeat(300);
+
+        assertThat(RequestLoggingFilter.truncate(userAgent)).hasSize(259).endsWith("...");
     }
 }
