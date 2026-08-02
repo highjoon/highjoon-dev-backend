@@ -5,6 +5,8 @@ import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.global.response.ApiResult;
+import com.highjoondev.api.tag.exception.DuplicatedTagNameException;
+import com.highjoondev.api.tag.exception.TagNotFoundException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +40,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicatedCategorySlugException.class)
     public ResponseEntity<ApiResult<Void>> handleDuplicatedCategorySlugException(
             DuplicatedCategorySlugException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResult.error(exception.getErrorCode().code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(TagNotFoundException.class)
+    public ResponseEntity<ApiResult<Void>> handleTagNotFoundException(TagNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResult.error(exception.getErrorCode().code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicatedTagNameException.class)
+    public ResponseEntity<ApiResult<Void>> handleDuplicatedTagNameException(DuplicatedTagNameException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResult.error(exception.getErrorCode().code(), exception.getMessage()));
     }
