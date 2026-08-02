@@ -62,14 +62,20 @@ jobs:
           fi
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Sync compose.yml
+      - name: Sync deploy files
         env:
           VM_USER: ${{ secrets.VM_USER }}
           VM_HOST: ${{ secrets.VM_HOST }}
         run: |
-          ssh "$VM_USER@$VM_HOST" \
-            'cp /opt/highjoon-dev/compose.yml /opt/highjoon-dev/compose.yml.prev 2>/dev/null || true'
+          ssh "$VM_USER@$VM_HOST" bash -s <<'EOF'
+            cd /opt/highjoon-dev
+            cp compose.yml compose.yml.prev 2>/dev/null || true
+            rm -rf fluent-bit.prev
+            cp -r fluent-bit fluent-bit.prev 2>/dev/null || true
+            mkdir -p fluent-bit
+          EOF
           scp compose.yml "$VM_USER@$VM_HOST:/opt/highjoon-dev/compose.yml"
+          scp deploy/fluent-bit/*.conf "$VM_USER@$VM_HOST:/opt/highjoon-dev/fluent-bit/"
 
       - name: Deploy
         id: deploy
@@ -128,6 +134,11 @@ jobs:
 
             if [ -f compose.yml.prev ]; then
               cp compose.yml.prev compose.yml
+            fi
+
+            if [ -d fluent-bit.prev ]; then
+              rm -rf fluent-bit
+              cp -r fluent-bit.prev fluent-bit
             fi
 
             cp .env.deploy.prev .env.deploy
