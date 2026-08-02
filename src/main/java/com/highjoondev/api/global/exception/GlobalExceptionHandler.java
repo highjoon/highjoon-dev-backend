@@ -7,7 +7,9 @@ import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.global.response.ApiResult;
 import com.highjoondev.api.tag.exception.DuplicatedTagNameException;
 import com.highjoondev.api.tag.exception.TagNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     @ExceptionHandler(CategoryNotFoundException.class)
@@ -77,5 +80,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResult.error(
                         CommonErrorCode.INVALID_PARAMETER.code(),
                         CommonErrorCode.INVALID_PARAMETER.message(exception.getName())));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResult<Void>> handleException(Exception exception, HttpServletRequest request) {
+        log.error("처리하지 못한 예외: {} {}", request.getMethod(), request.getRequestURI(), exception);
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResult.error(CommonErrorCode.INTERNAL_ERROR.code(), CommonErrorCode.INTERNAL_ERROR.message()));
     }
 }
