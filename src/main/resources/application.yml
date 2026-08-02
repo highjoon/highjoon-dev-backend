@@ -4,15 +4,22 @@ spring:
   config:
     import: optional:file:application-local.yml
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
 
+server:
+  forward-headers-strategy: native
+
 app:
   cors:
-    allowed-origins: http://localhost:3000
+    allowed-origins: https://www.highjoon-dev.com,https://highjoon-dev.com,http://localhost:3000
 
 management:
   endpoints:
     web:
       exposure:
         include: health
+  health:
+    db:
+      enabled: false
