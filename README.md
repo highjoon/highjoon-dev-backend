@@ -67,3 +67,56 @@ src/main/resources/db/migration/V1__create_category.sql
 ./gradlew spotlessApply   # palantir-java-format
 ./gradlew build           # spotlessCheck 포함
 ```
+
+## 로깅
+
+```
+앱(stdout) → Docker json-file → Fluent Bit → GCP Cloud Logging
+```
+
+- 로컬은 평문, 배포 환경은 ECS JSON. `.env`의 `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`로 구분
+- 로컬에서 JSON을 보려면 `./gradlew bootRun --args='--logging.structured.format.console=ecs'` 실행
+- 설정은 `deploy/fluent-bit/`에 있고 배포 때 `/opt/highjoon-dev/fluent-bit/`로 동기화
+- 로컬 로그 파일은 10MB × 3개로 로테이션
+
+### 로깅 대상
+
+| 대상    | 레벨                        |
+|-------|---------------------------|
+| 모든 요청 | INFO 한 줄                  |
+| 4xx   | 추가 로그 없음 (요청 완료 INFO는 기록) |
+| 5xx   | ERROR + 스택트레이스            |
+
+- `/actuator`는 필터에서 제외
+- 요청 본문은 제외
+
+### traceId
+
+`RequestLoggingFilter`가 요청마다 8자리 ID를 발급해 MDC에 넣고 응답 헤더 `X-Trace-Id`로 반환
+
+| 필드          | 비고                |
+|-------------|-------------------|
+| `traceId`   | 요청 식별자            |
+| `clientIp`  | 마지막 자리를 `0`으로 마스킹 |
+| `userAgent` | 256자 초과 시 절단      |
+
+### 조회
+
+```bash
+gcloud logging read 'resource.type="gce_instance" AND jsonPayload.traceId="a1b2c3d4"' --limit=10
+```
+
+#### Logs Explorer 쿼리
+
+```
+severity>=ERROR                        에러만
+jsonPayload.clientIp="1.2.3.0"         특정 대역
+jsonPayload.message=~"[0-9]{4}ms"      1초 넘는 요청
+```
+
+### 알림
+
+| 이름            | 조건                                                       |
+|---------------|----------------------------------------------------------|
+| 앱 ERROR 로그 발생 | 5분간 `severity>=ERROR` 1건 이상                              |
+| API 헬스체크 실패   | `/actuator/health` 1분 간격, 5분 연속 실패 (OOM 등으로 앱이 죽는 경우 대비) |
