@@ -35,10 +35,11 @@ public class Category {
     private List<Category> children = new ArrayList<>();
 
     @CreationTimestamp
-    @Column(updatable = false)
+    @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
     @UpdateTimestamp
+    @Column(nullable = false)
     private Instant updatedAt;
 
     public static Category create(String title, String slug, Category parentCategory) {
