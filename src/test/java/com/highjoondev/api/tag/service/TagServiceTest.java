@@ -62,7 +62,7 @@ public class TagServiceTest {
     void findById_whenTagFound_shouldReturnTagResponse() {
         // Given
         UUID id = UUID.randomUUID();
-        Tag tag = Tag.create("react");
+        Tag tag = Tag.builder().name("react").build();
         when(tagRepository.findById(id)).thenReturn(Optional.of(tag));
 
         // When
@@ -85,7 +85,10 @@ public class TagServiceTest {
     @Test
     void findAll_shouldReturnAllTags() {
         // Given
-        when(tagRepository.findAll(Sort.by("name"))).thenReturn(List.of(Tag.create("react"), Tag.create("nextjs")));
+        when(tagRepository.findAll(Sort.by("name")))
+                .thenReturn(List.of(
+                        Tag.builder().name("react").build(),
+                        Tag.builder().name("nextjs").build()));
 
         // When
         List<TagResponse> responses = tagService.findAll();
@@ -112,7 +115,8 @@ public class TagServiceTest {
         // Given
         UUID id = UUID.randomUUID();
         var request = new TagUpdateRequest("react");
-        when(tagRepository.findById(id)).thenReturn(Optional.of(Tag.create("old name")));
+        when(tagRepository.findById(id))
+                .thenReturn(Optional.of(Tag.builder().name("old name").build()));
 
         // When
         TagResponse response = tagService.updateById(id, request);
@@ -149,7 +153,8 @@ public class TagServiceTest {
         // Given
         UUID id = UUID.randomUUID();
         var request = new TagUpdateRequest("react");
-        when(tagRepository.findById(id)).thenReturn(Optional.of(Tag.create("old name")));
+        when(tagRepository.findById(id))
+                .thenReturn(Optional.of(Tag.builder().name("old name").build()));
         when(tagRepository.existsByNameAndIdNot("react", id)).thenReturn(true);
 
         // When, Then
@@ -161,7 +166,8 @@ public class TagServiceTest {
         // Given: 이름을 그대로 두고 저장해도 자기 자신은 중복이 아님
         UUID id = UUID.randomUUID();
         var request = new TagUpdateRequest("react");
-        when(tagRepository.findById(id)).thenReturn(Optional.of(Tag.create("react")));
+        when(tagRepository.findById(id))
+                .thenReturn(Optional.of(Tag.builder().name("react").build()));
         when(tagRepository.existsByNameAndIdNot("react", id)).thenReturn(false);
 
         // When
@@ -175,7 +181,7 @@ public class TagServiceTest {
     void delete_withValidId_shouldRemoveTag() {
         // Given
         UUID id = UUID.randomUUID();
-        Tag tag = Tag.create("react");
+        Tag tag = Tag.builder().name("react").build();
         when(tagRepository.findById(id)).thenReturn(Optional.of(tag));
 
         // When
@@ -224,7 +230,8 @@ public class TagServiceTest {
         // Given
         UUID id = UUID.randomUUID();
         var request = new TagUpdateRequest("  React  ");
-        when(tagRepository.findById(id)).thenReturn(Optional.of(Tag.create("old-tag")));
+        when(tagRepository.findById(id))
+                .thenReturn(Optional.of(Tag.builder().name("old-tag").build()));
 
         // When
         TagResponse response = tagService.updateById(id, request);
@@ -237,7 +244,8 @@ public class TagServiceTest {
     @Test
     void findByName_withMixedCaseName_shouldNormalize() {
         // Given
-        when(tagRepository.findByName("react")).thenReturn(Optional.of(Tag.create("react")));
+        when(tagRepository.findByName("react"))
+                .thenReturn(Optional.of(Tag.builder().name("react").build()));
 
         // When
         TagResponse response = tagService.findByName("  React  ");

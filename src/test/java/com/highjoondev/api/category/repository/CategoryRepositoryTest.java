@@ -23,7 +23,7 @@ public class CategoryRepositoryTest {
     @Test
     void save_withValidCategory_shouldPersistAndBeRetrievable() {
         // Given
-        Category category = Category.create("title", "title", null);
+        Category category = Category.builder().title("title").slug("title").build();
 
         // When
         categoryRepository.saveAndFlush(category);
@@ -36,8 +36,10 @@ public class CategoryRepositoryTest {
     @Test
     void save_withDuplicateSlug_shouldThrowException() {
         // Given
-        categoryRepository.saveAndFlush(Category.create("title", "slug", null));
-        Category duplicate = Category.create("other title", "slug", null);
+        categoryRepository.saveAndFlush(
+                Category.builder().title("title").slug("slug").build());
+        Category duplicate =
+                Category.builder().title("other title").slug("slug").build();
 
         // When, Then
         assertThatThrownBy(() -> categoryRepository.saveAndFlush(duplicate))
@@ -47,7 +49,8 @@ public class CategoryRepositoryTest {
     @Test
     void existsBySlug_withExistingSlug_shouldReturnTrue() {
         // Given
-        categoryRepository.saveAndFlush(Category.create("title", "slug", null));
+        categoryRepository.saveAndFlush(
+                Category.builder().title("title").slug("slug").build());
 
         // When, Then
         assertThat(categoryRepository.existsBySlug("slug")).isTrue();
@@ -57,7 +60,7 @@ public class CategoryRepositoryTest {
     @Test
     void existsBySlugAndIdNot_withOwnSlug_shouldReturnFalse() {
         // Given
-        Category category = Category.create("title", "slug", null);
+        Category category = Category.builder().title("title").slug("slug").build();
         categoryRepository.saveAndFlush(category);
 
         // When, Then
@@ -70,7 +73,7 @@ public class CategoryRepositoryTest {
     @Test
     void delete_withValidCategory_shouldBeDeleted() {
         // Given
-        Category category = Category.create("title", "title", null);
+        Category category = Category.builder().title("title").slug("title").build();
         categoryRepository.saveAndFlush(category);
 
         // When
@@ -83,8 +86,9 @@ public class CategoryRepositoryTest {
     @Test
     void delete_withChildren_shouldCascadeDeleteChildren() {
         // Given
-        Category parent = Category.create("parent", "parent", null);
-        Category child = Category.create("child", "child", parent);
+        Category parent = Category.builder().title("parent").slug("parent").build();
+        Category child =
+                Category.builder().title("child").slug("child").parent(parent).build();
         categoryRepository.saveAndFlush(parent);
         categoryRepository.saveAndFlush(child);
 
