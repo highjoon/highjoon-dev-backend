@@ -28,7 +28,7 @@ public class TagService {
             throw new DuplicatedTagNameException(name);
         }
 
-        Tag tag = Tag.create(name);
+        Tag tag = Tag.builder().name(name).build();
         tagRepository.save(tag);
 
         return TagResponse.from(tag);

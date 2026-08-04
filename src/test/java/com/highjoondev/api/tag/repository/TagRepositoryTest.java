@@ -25,7 +25,7 @@ public class TagRepositoryTest {
     @Test
     void save_withValidTag_shouldPersistAndBeRetrievable() {
         // Given
-        Tag tag = Tag.create("test-tag");
+        Tag tag = Tag.builder().name("test-tag").build();
 
         // When
         tagRepository.saveAndFlush(tag);
@@ -39,8 +39,8 @@ public class TagRepositoryTest {
     @Test
     void save_withDuplicateName_shouldThrowException() {
         // Given
-        tagRepository.saveAndFlush(Tag.create("test-tag"));
-        Tag duplicate = Tag.create("test-tag");
+        tagRepository.saveAndFlush(Tag.builder().name("test-tag").build());
+        Tag duplicate = Tag.builder().name("test-tag").build();
 
         // When, Then
         assertThatThrownBy(() -> tagRepository.saveAndFlush(duplicate))
@@ -50,7 +50,7 @@ public class TagRepositoryTest {
     @Test
     void existsByName_withExistingName_shouldReturnTrue() {
         // Given
-        tagRepository.saveAndFlush(Tag.create("test-tag"));
+        tagRepository.saveAndFlush(Tag.builder().name("test-tag").build());
 
         // When, Then
         assertThat(tagRepository.existsByName("test-tag")).isTrue();
@@ -60,7 +60,7 @@ public class TagRepositoryTest {
     @Test
     void existsByNameAndIdNot_withOwnName_shouldReturnFalse() {
         // Given
-        Tag tag = Tag.create("test-tag");
+        Tag tag = Tag.builder().name("test-tag").build();
         tagRepository.saveAndFlush(tag);
 
         // When, Then
@@ -72,7 +72,7 @@ public class TagRepositoryTest {
     @Test
     void delete_withValidTag_shouldBeDeleted() {
         // Given
-        Tag tag = Tag.create("test-tag");
+        Tag tag = Tag.builder().name("test-tag").build();
         tagRepository.saveAndFlush(tag);
 
         // When
@@ -85,8 +85,8 @@ public class TagRepositoryTest {
     @Test
     void findAll_withNameSort_shouldReturnSortedByName() {
         // Given
-        tagRepository.saveAndFlush(Tag.create("zzz-tag"));
-        tagRepository.saveAndFlush(Tag.create("aaa-tag"));
+        tagRepository.saveAndFlush(Tag.builder().name("zzz-tag").build());
+        tagRepository.saveAndFlush(Tag.builder().name("aaa-tag").build());
 
         // When
         List<String> names = tagRepository.findAll(Sort.by("name")).stream()
@@ -100,7 +100,7 @@ public class TagRepositoryTest {
     @Test
     void update_shouldChangeName() {
         // Given
-        Tag tag = Tag.create("old-tag");
+        Tag tag = Tag.builder().name("old-tag").build();
         tagRepository.saveAndFlush(tag);
 
         // When

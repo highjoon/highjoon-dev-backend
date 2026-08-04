@@ -80,7 +80,7 @@ public class CategoryServiceTest {
     void findById_whenCategoryFound_shouldReturnCategoryResponse() {
         // Given
         UUID id = UUID.randomUUID();
-        Category category = Category.create("title", "slug", null);
+        Category category = Category.builder().title("title").slug("slug").build();
         when(categoryRepository.findById(id)).thenReturn(Optional.of(category));
 
         // When
@@ -94,7 +94,7 @@ public class CategoryServiceTest {
     @Test
     void findAll_shouldReturnAllCategories() {
         // Given
-        Category category = Category.create("title", "slug", null);
+        Category category = Category.builder().title("title").slug("slug").build();
         when(categoryRepository.findAll()).thenReturn(List.of(category));
 
         // When
@@ -122,7 +122,8 @@ public class CategoryServiceTest {
         // Given
         UUID parentId = UUID.randomUUID();
         var request = new CategoryCreateRequest("title", "slug", parentId);
-        Category parentCategory = Category.create("parent", "parent-slug", null);
+        Category parentCategory =
+                Category.builder().title("parent").slug("parent-slug").build();
         ReflectionTestUtils.setField(parentCategory, "id", parentId);
         when(categoryRepository.findById(parentId)).thenReturn(Optional.of(parentCategory));
 
@@ -140,11 +141,13 @@ public class CategoryServiceTest {
         UUID parentId = UUID.randomUUID();
         var request = new CategoryUpdateRequest("title", "slug", parentId);
 
-        Category targetCategory = Category.create("old title", "old-slug", null);
+        Category targetCategory =
+                Category.builder().title("old title").slug("old-slug").build();
         ReflectionTestUtils.setField(targetCategory, "id", id);
         when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
 
-        Category parentCategory = Category.create("parent", "parent-slug", null);
+        Category parentCategory =
+                Category.builder().title("parent").slug("parent-slug").build();
         ReflectionTestUtils.setField(parentCategory, "id", parentId);
         when(categoryRepository.findById(parentId)).thenReturn(Optional.of(parentCategory));
 
@@ -184,7 +187,8 @@ public class CategoryServiceTest {
         UUID parentId = UUID.randomUUID();
         var request = new CategoryUpdateRequest("title", "slug", parentId);
 
-        Category targetCategory = Category.create("old title", "old-slug", null);
+        Category targetCategory =
+                Category.builder().title("old title").slug("old-slug").build();
         when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
         when(categoryRepository.findById(parentId)).thenReturn(Optional.empty());
 
@@ -199,7 +203,8 @@ public class CategoryServiceTest {
         UUID id = UUID.randomUUID();
         var request = new CategoryUpdateRequest("title", "slug", id);
 
-        Category targetCategory = Category.create("old title", "old-slug", null);
+        Category targetCategory =
+                Category.builder().title("old title").slug("old-slug").build();
         ReflectionTestUtils.setField(targetCategory, "id", id);
         when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
 
@@ -215,9 +220,13 @@ public class CategoryServiceTest {
         UUID childId = UUID.randomUUID();
         var request = new CategoryUpdateRequest("title", "slug", childId);
 
-        Category root = Category.create("root", "root-slug", null);
+        Category root = Category.builder().title("root").slug("root-slug").build();
         ReflectionTestUtils.setField(root, "id", rootId);
-        Category child = Category.create("child", "child-slug", root);
+        Category child = Category.builder()
+                .title("child")
+                .slug("child-slug")
+                .parent(root)
+                .build();
         ReflectionTestUtils.setField(child, "id", childId);
 
         when(categoryRepository.findById(rootId)).thenReturn(Optional.of(root));
@@ -234,7 +243,8 @@ public class CategoryServiceTest {
         UUID id = UUID.randomUUID();
         var request = new CategoryUpdateRequest("title", "slug", null);
 
-        Category targetCategory = Category.create("old title", "old-slug", null);
+        Category targetCategory =
+                Category.builder().title("old title").slug("old-slug").build();
         ReflectionTestUtils.setField(targetCategory, "id", id);
         when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
         when(categoryRepository.existsBySlugAndIdNot("slug", id)).thenReturn(true);
@@ -250,7 +260,8 @@ public class CategoryServiceTest {
         UUID id = UUID.randomUUID();
         var request = new CategoryUpdateRequest("title", "slug", null);
 
-        Category targetCategory = Category.create("old title", "old-slug", null);
+        Category targetCategory =
+                Category.builder().title("old title").slug("old-slug").build();
         when(categoryRepository.findById(id)).thenReturn(Optional.of(targetCategory));
 
         // When
@@ -265,7 +276,7 @@ public class CategoryServiceTest {
     void delete_withValidRequest_shouldRemoveCategory() {
         // Given
         UUID id = UUID.randomUUID();
-        Category category = Category.create("title", "slug", null);
+        Category category = Category.builder().title("title").slug("slug").build();
         when(categoryRepository.findById(id)).thenReturn(Optional.of(category));
 
         // When

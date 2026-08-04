@@ -27,7 +27,11 @@ public class CategoryService {
         }
 
         Category parent = resolveParent(request.parentId());
-        Category category = Category.create(request.title(), request.slug(), parent);
+        Category category = Category.builder()
+                .title(request.title())
+                .slug(request.slug())
+                .parent(parent)
+                .build();
         categoryRepository.save(category);
 
         return CategoryResponse.from(category);
