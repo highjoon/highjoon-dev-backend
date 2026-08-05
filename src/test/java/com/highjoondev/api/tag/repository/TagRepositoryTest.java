@@ -7,6 +7,7 @@ import com.highjoondev.api.TestcontainersConfig;
 import com.highjoondev.api.tag.entity.Tag;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -23,6 +24,7 @@ public class TagRepositoryTest {
     TagRepository tagRepository;
 
     @Test
+    @DisplayName("태그 저장 시 id, 생성일 자동 생성")
     void save_withValidTag_shouldPersistAndBeRetrievable() {
         // Given
         Tag tag = Tag.builder().name("test-tag").build();
@@ -37,6 +39,7 @@ public class TagRepositoryTest {
     }
 
     @Test
+    @DisplayName("중복 이름 저장 시 예외")
     void save_withDuplicateName_shouldThrowException() {
         // Given
         tagRepository.saveAndFlush(Tag.builder().name("test-tag").build());
@@ -48,6 +51,7 @@ public class TagRepositoryTest {
     }
 
     @Test
+    @DisplayName("이름 존재 여부 확인")
     void existsByName_withExistingName_shouldReturnTrue() {
         // Given
         tagRepository.saveAndFlush(Tag.builder().name("test-tag").build());
@@ -58,6 +62,7 @@ public class TagRepositoryTest {
     }
 
     @Test
+    @DisplayName("자기 자신 제외 이름 중복 검사")
     void existsByNameAndIdNot_withOwnName_shouldReturnFalse() {
         // Given
         Tag tag = Tag.builder().name("test-tag").build();
@@ -70,6 +75,7 @@ public class TagRepositoryTest {
     }
 
     @Test
+    @DisplayName("태그 삭제")
     void delete_withValidTag_shouldBeDeleted() {
         // Given
         Tag tag = Tag.builder().name("test-tag").build();
@@ -83,6 +89,7 @@ public class TagRepositoryTest {
     }
 
     @Test
+    @DisplayName("이름순 정렬 조회")
     void findAll_withNameSort_shouldReturnSortedByName() {
         // Given
         tagRepository.saveAndFlush(Tag.builder().name("zzz-tag").build());
@@ -98,6 +105,7 @@ public class TagRepositoryTest {
     }
 
     @Test
+    @DisplayName("태그 이름 수정")
     void update_shouldChangeName() {
         // Given
         Tag tag = Tag.builder().name("old-tag").build();
