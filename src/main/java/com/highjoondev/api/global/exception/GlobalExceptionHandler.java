@@ -5,6 +5,9 @@ import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.global.response.ApiResult;
+import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
+import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
+import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.tag.exception.DuplicatedTagNameException;
 import com.highjoondev.api.tag.exception.TagNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -58,6 +61,25 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DuplicatedTagNameException.class)
     public ResponseEntity<ApiResult<Void>> handleDuplicatedTagNameException(DuplicatedTagNameException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResult.error(exception.getErrorCode().code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(PostNotFoundException.class)
+    public ResponseEntity<ApiResult<Void>> handlePostNotFoundException(PostNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResult.error(exception.getErrorCode().code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicatedPostSlugException.class)
+    public ResponseEntity<ApiResult<Void>> handleDuplicatedPostSlugException(DuplicatedPostSlugException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResult.error(exception.getErrorCode().code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicatedFeaturedPostException.class)
+    public ResponseEntity<ApiResult<Void>> handleDuplicatedFeaturedPostException(
+            DuplicatedFeaturedPostException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResult.error(exception.getErrorCode().code(), exception.getMessage()));
     }
