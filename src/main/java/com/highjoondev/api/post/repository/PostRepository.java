@@ -18,19 +18,24 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     boolean existsBySlugAndIdNot(String slug, UUID id);
 
     /** 수정, 삭제도 쓰는 조회라 숨김 여부로 거르지 않음 */
+    @EntityGraph(attributePaths = {"category", "category.parent"})
     Optional<Post> findBySlug(String slug);
+
+    /** 추천 자리가 찼는지 검사용. 숨긴 글도 포함해서 조회 */
+    Optional<Post> findFirstByIsFeaturedTrue();
 
     /**
      * 추천 글 1건
      * - 만약 추천 글이 2건 이상이면, 가장 최근에 발행된 글 반환
      */
+    @EntityGraph(attributePaths = {"category", "category.parent"})
     Optional<Post> findFirstByIsFeaturedTrueAndIsHiddenFalseOrderByPublishedAtDescIdDesc();
 
     /**
      * 목록
      * - 발행일, id 순으로 정렬
      */
-    @EntityGraph(attributePaths = {"category"})
+    @EntityGraph(attributePaths = {"category", "category.parent"})
     Page<Post> findByIsHiddenFalseOrderByPublishedAtDescIdDesc(Pageable pageable);
 
     /**
@@ -66,7 +71,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
      * @param categoryIds 카테고리 ID 목록
      * @param pageable 페이지네이션
      */
-    @EntityGraph(attributePaths = {"category"})
+    @EntityGraph(attributePaths = {"category", "category.parent"})
     Page<Post> findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(
             Collection<UUID> categoryIds, Pageable pageable);
 }
