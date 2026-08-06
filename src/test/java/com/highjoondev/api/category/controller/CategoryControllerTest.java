@@ -91,7 +91,7 @@ public class CategoryControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("DUPLICATED_SLUG"));
+                .andExpect(jsonPath("$.error.code").value("CATEGORY_DUPLICATED_SLUG"));
     }
 
     @Test
@@ -231,7 +231,7 @@ public class CategoryControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("DUPLICATED_SLUG"));
+                .andExpect(jsonPath("$.error.code").value("CATEGORY_DUPLICATED_SLUG"));
     }
 
     @Test
