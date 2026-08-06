@@ -17,6 +17,7 @@ import com.highjoondev.api.post.repository.PostRepository;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +40,14 @@ public class PostServiceTest {
 
     @InjectMocks
     private PostService postService;
+
+    @BeforeEach
+    void setUp() {
+        // 목의 saveAndFlush는 기본값이 null이라 저장한 엔티티를 그대로 돌려주도록 지정
+        lenient()
+                .when(postRepository.saveAndFlush(any(Post.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     private PostCreateRequest request(UUID categoryId, boolean isFeatured, boolean isHidden) {
         return new PostCreateRequest(
@@ -70,7 +79,7 @@ public class PostServiceTest {
         assertThat(response.bannerImageUrl()).isEqualTo("https://example.com/banner.png");
         assertThat(response.publishedAt()).isEqualTo(PUBLISHED_AT);
         assertThat(response.viewCount()).isZero();
-        verify(postRepository).save(any(Post.class));
+        verify(postRepository).saveAndFlush(any(Post.class));
     }
 
     @Test
@@ -82,7 +91,7 @@ public class PostServiceTest {
 
         // When, Then
         assertThatThrownBy(() -> postService.create(request)).isInstanceOf(DuplicatedPostSlugException.class);
-        verify(postRepository, never()).save(any(Post.class));
+        verify(postRepository, never()).saveAndFlush(any(Post.class));
     }
 
     @Test
@@ -99,7 +108,7 @@ public class PostServiceTest {
         assertThatThrownBy(() -> postService.create(request))
                 .isInstanceOf(DuplicatedFeaturedPostException.class)
                 .hasMessageContaining(featuredId.toString());
-        verify(postRepository, never()).save(any(Post.class));
+        verify(postRepository, never()).saveAndFlush(any(Post.class));
     }
 
     @Test
@@ -113,7 +122,7 @@ public class PostServiceTest {
 
         // Then
         verify(postRepository, never()).findFirstByIsFeaturedTrue();
-        verify(postRepository).save(any(Post.class));
+        verify(postRepository).saveAndFlush(any(Post.class));
     }
 
     @Test
@@ -127,7 +136,7 @@ public class PostServiceTest {
 
         // Then
         ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
-        verify(postRepository).save(captor.capture());
+        verify(postRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().isFeatured()).isTrue();
         assertThat(captor.getValue().isHidden()).isTrue();
     }
@@ -175,7 +184,7 @@ public class PostServiceTest {
 
         // When, Then
         assertThatThrownBy(() -> postService.create(request)).isInstanceOf(CategoryNotFoundException.class);
-        verify(postRepository, never()).save(any(Post.class));
+        verify(postRepository, never()).saveAndFlush(any(Post.class));
     }
 
     @Test

@@ -23,7 +23,6 @@ public class PostService {
 
     @Transactional
     public PostResponse create(PostCreateRequest request) {
-
         if (postRepository.existsBySlug(request.slug())) {
             throw new DuplicatedPostSlugException(request.slug());
         }
@@ -35,8 +34,9 @@ public class PostService {
         }
 
         Category category = resolveCategory(request.categoryId());
-        Post post = request.toEntity(category);
-        postRepository.save(post);
+        // 응답에 담을 생성, 수정 시각은 flush 후에 채워짐
+        Post post = postRepository.saveAndFlush(request.toEntity(category));
+
         return PostResponse.from(post);
     }
 
