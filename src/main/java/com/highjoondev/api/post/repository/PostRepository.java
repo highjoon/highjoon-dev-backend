@@ -74,4 +74,10 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     @EntityGraph(attributePaths = {"category", "category.parent"})
     Page<Post> findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(
             Collection<UUID> categoryIds, Pageable pageable);
+
+    /**
+     * 특정 게시물을 제외하고 또 다른 추천 게시물이 있는지 확인
+     * @param id 검사에서 제외할 게시물 ID
+     */
+    Optional<Post> findFirstByIsFeaturedTrueAndIdNot(UUID id);
 }

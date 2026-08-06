@@ -10,9 +10,11 @@ import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import com.highjoondev.api.post.dto.PostCreateRequest;
 import com.highjoondev.api.post.dto.PostResponse;
+import com.highjoondev.api.post.dto.PostUpdateRequest;
 import com.highjoondev.api.post.entity.Post;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
 import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
+import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
 import java.time.Instant;
 import java.util.Optional;
@@ -31,6 +33,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 public class PostServiceTest {
 
     private static final Instant PUBLISHED_AT = Instant.parse("2026-05-11T00:00:00Z");
+    private static final Instant NEW_PUBLISHED_AT = Instant.parse("2026-06-22T00:00:00Z");
 
     @Mock
     private PostRepository postRepository;
@@ -60,6 +63,34 @@ public class PostServiceTest {
                 categoryId,
                 isFeatured,
                 isHidden);
+    }
+
+    /** 수정 요청. 필드마다 값을 다르게 둬서 인자 순서가 바뀌면 잡히게 함 */
+    private PostUpdateRequest updateRequest(String slug, UUID categoryId, boolean isFeatured, boolean isHidden) {
+        return new PostUpdateRequest(
+                "새 제목",
+                slug,
+                "새 설명",
+                "https://example.com/new-content.md",
+                "https://example.com/new-banner.png",
+                NEW_PUBLISHED_AT,
+                categoryId,
+                isFeatured,
+                isHidden);
+    }
+
+    /** 수정 대상 기존 글. 값이 요청과 전부 달라야 수정 여부를 확인할 수 있음 */
+    private Post existingPost(UUID id) {
+        Post post = Post.builder()
+                .slug("old-slug")
+                .title("옛 제목")
+                .description("옛 설명")
+                .contentUrl("https://example.com/old-content.md")
+                .bannerImageUrl("https://example.com/old-banner.png")
+                .publishedAt(PUBLISHED_AT)
+                .build();
+        ReflectionTestUtils.setField(post, "id", id);
+        return post;
     }
 
     @Test
@@ -197,5 +228,175 @@ public class PostServiceTest {
         // When, Then
         assertThatThrownBy(() -> postService.create(request)).isInstanceOf(DuplicatedPostSlugException.class);
         verify(postRepository, never()).findFirstByIsFeaturedTrue();
+    }
+
+    @Test
+    @DisplayName("정상 요청 시 모든 필드 수정")
+    void updateById_withValidRequest_shouldUpdateAllFields() {
+        // Given
+        UUID id = UUID.randomUUID();
+        Post post = existingPost(id);
+        var request = updateRequest("new-slug", null, true, true);
+        when(postRepository.findById(id)).thenReturn(Optional.of(post));
+
+        // When
+        PostResponse response = postService.updateById(id, request);
+
+        // Then
+        assertThat(response.title()).isEqualTo("새 제목");
+        assertThat(response.slug()).isEqualTo("new-slug");
+        assertThat(response.description()).isEqualTo("새 설명");
+        assertThat(response.contentUrl()).isEqualTo("https://example.com/new-content.md");
+        assertThat(response.bannerImageUrl()).isEqualTo("https://example.com/new-banner.png");
+        assertThat(response.publishedAt()).isEqualTo(NEW_PUBLISHED_AT);
+        assertThat(response.isFeatured()).isTrue();
+        assertThat(response.isHidden()).isTrue();
+    }
+
+    @Test
+    @DisplayName("없는 id 수정 시 예외")
+    void updateById_withNonExistentId_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        var request = updateRequest("new-slug", null, false, false);
+        when(postRepository.findById(id)).thenReturn(Optional.empty());
+
+        // When, Then
+        assertThatThrownBy(() -> postService.updateById(id, request)).isInstanceOf(PostNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("다른 글이 쓰는 slug으로 수정 시 예외")
+    void updateById_withDuplicateSlug_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        var request = updateRequest("taken-slug", null, false, false);
+        when(postRepository.findById(id)).thenReturn(Optional.of(existingPost(id)));
+        when(postRepository.existsBySlugAndIdNot("taken-slug", id)).thenReturn(true);
+
+        // When, Then
+        assertThatThrownBy(() -> postService.updateById(id, request)).isInstanceOf(DuplicatedPostSlugException.class);
+    }
+
+    @Test
+    @DisplayName("자기 slug 유지한 채 수정 시 통과")
+    void updateById_withOwnSlug_shouldNotThrow() {
+        // Given: 자기 자신을 뺀 검사만 통과해야 하므로, 뺀 검사는 false 안 뺀 검사는 true로 둠
+        UUID id = UUID.randomUUID();
+        var request = updateRequest("old-slug", null, false, false);
+        when(postRepository.findById(id)).thenReturn(Optional.of(existingPost(id)));
+        lenient().when(postRepository.existsBySlug("old-slug")).thenReturn(true);
+        when(postRepository.existsBySlugAndIdNot("old-slug", id)).thenReturn(false);
+
+        // When
+        PostResponse response = postService.updateById(id, request);
+
+        // Then
+        assertThat(response.slug()).isEqualTo("old-slug");
+        assertThat(response.title()).isEqualTo("새 제목");
+    }
+
+    @Test
+    @DisplayName("다른 추천 글이 있는데 추천으로 수정 시 예외")
+    void updateById_withExistingFeaturedPost_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        UUID featuredId = UUID.randomUUID();
+        var request = updateRequest("new-slug", null, true, false);
+        when(postRepository.findById(id)).thenReturn(Optional.of(existingPost(id)));
+        when(postRepository.findFirstByIsFeaturedTrueAndIdNot(id)).thenReturn(Optional.of(existingPost(featuredId)));
+
+        // When, Then
+        assertThatThrownBy(() -> postService.updateById(id, request))
+                .isInstanceOf(DuplicatedFeaturedPostException.class)
+                .hasMessageContaining(featuredId.toString());
+    }
+
+    @Test
+    @DisplayName("이미 추천인 글을 추천 유지한 채 수정 시 통과")
+    void updateById_whenAlreadyFeatured_shouldNotThrow() {
+        // Given: 자기 자신을 뺀 검사만 통과해야 하므로, 뺀 검사는 비우고 안 뺀 검사는 채움
+        UUID id = UUID.randomUUID();
+        Post post = existingPost(id);
+        var request = updateRequest("new-slug", null, true, false);
+        when(postRepository.findById(id)).thenReturn(Optional.of(post));
+        lenient().when(postRepository.findFirstByIsFeaturedTrue()).thenReturn(Optional.of(post));
+        when(postRepository.findFirstByIsFeaturedTrueAndIdNot(id)).thenReturn(Optional.empty());
+
+        // When
+        PostResponse response = postService.updateById(id, request);
+
+        // Then
+        assertThat(response.isFeatured()).isTrue();
+    }
+
+    @Test
+    @DisplayName("추천이 아니면 추천 중복 검사 건너뜀")
+    void updateById_withoutFeatured_shouldSkipFeaturedCheck() {
+        // Given
+        UUID id = UUID.randomUUID();
+        var request = updateRequest("new-slug", null, false, false);
+        when(postRepository.findById(id)).thenReturn(Optional.of(existingPost(id)));
+
+        // When
+        postService.updateById(id, request);
+
+        // Then
+        verify(postRepository, never()).findFirstByIsFeaturedTrueAndIdNot(any(UUID.class));
+    }
+
+    @Test
+    @DisplayName("카테고리 지정 시 응답에 카테고리 포함")
+    void updateById_withCategoryId_shouldUpdateCategory() {
+        // Given
+        UUID id = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        var request = updateRequest("new-slug", categoryId, false, false);
+        Category category = Category.builder().title("프론트엔드").slug("frontend").build();
+        ReflectionTestUtils.setField(category, "id", categoryId);
+        when(postRepository.findById(id)).thenReturn(Optional.of(existingPost(id)));
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+
+        // When
+        PostResponse response = postService.updateById(id, request);
+
+        // Then
+        assertThat(response.category().id()).isEqualTo(categoryId);
+        assertThat(response.category().slug()).isEqualTo("frontend");
+    }
+
+    @Test
+    @DisplayName("카테고리 미지정 시 미분류로 수정")
+    void updateById_withNullCategoryId_shouldRemoveCategory() {
+        // Given
+        UUID id = UUID.randomUUID();
+        Post post = existingPost(id);
+        ReflectionTestUtils.setField(
+                post,
+                "category",
+                Category.builder().title("프론트엔드").slug("frontend").build());
+        var request = updateRequest("new-slug", null, false, false);
+        when(postRepository.findById(id)).thenReturn(Optional.of(post));
+
+        // When
+        PostResponse response = postService.updateById(id, request);
+
+        // Then
+        assertThat(response.category()).isNull();
+        verify(categoryRepository, never()).findById(any(UUID.class));
+    }
+
+    @Test
+    @DisplayName("없는 카테고리 지정 시 예외")
+    void updateById_withNonExistentCategoryId_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        var request = updateRequest("new-slug", categoryId, false, false);
+        when(postRepository.findById(id)).thenReturn(Optional.of(existingPost(id)));
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.empty());
+
+        // When, Then
+        assertThatThrownBy(() -> postService.updateById(id, request)).isInstanceOf(CategoryNotFoundException.class);
     }
 }
