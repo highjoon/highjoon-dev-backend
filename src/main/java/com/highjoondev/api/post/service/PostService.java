@@ -9,6 +9,7 @@ import com.highjoondev.api.post.dto.PostUpdateRequest;
 import com.highjoondev.api.post.entity.Post;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
 import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
+import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
 import java.util.UUID;
@@ -72,6 +73,13 @@ public class PostService {
         postRepository.flush();
 
         return PostResponse.from(post);
+    }
+
+    public PostResponse findFeatured() {
+        Post featuredPost = postRepository
+                .findFirstByIsFeaturedTrueAndIsHiddenFalseOrderByPublishedAtDescIdDesc()
+                .orElseThrow(FeaturedPostNotFoundException::new);
+        return PostResponse.from(featuredPost);
     }
 
     private Category resolveCategory(UUID categoryId) {

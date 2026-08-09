@@ -14,6 +14,7 @@ import com.highjoondev.api.post.dto.PostUpdateRequest;
 import com.highjoondev.api.post.entity.Post;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
 import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
+import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
 import java.time.Instant;
@@ -398,5 +399,54 @@ public class PostServiceTest {
 
         // When, Then
         assertThatThrownBy(() -> postService.updateById(id, request)).isInstanceOf(CategoryNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("추천 글 조회 시 응답 반환")
+    void findFeatured_withFeaturedPost_shouldReturnPostResponse() {
+        // Given
+        UUID id = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        Category category = Category.builder().title("프론트엔드").slug("frontend").build();
+        ReflectionTestUtils.setField(category, "id", categoryId);
+
+        Post post = Post.builder()
+                .slug("featured-slug")
+                .title("추천 제목")
+                .description("추천 설명")
+                .contentUrl("https://example.com/featured-content.md")
+                .bannerImageUrl("https://example.com/featured-banner.png")
+                .publishedAt(PUBLISHED_AT)
+                .isFeatured(true)
+                .category(category)
+                .build();
+        ReflectionTestUtils.setField(post, "id", id);
+        when(postRepository.findFirstByIsFeaturedTrueAndIsHiddenFalseOrderByPublishedAtDescIdDesc())
+                .thenReturn(Optional.of(post));
+
+        // When
+        PostResponse response = postService.findFeatured();
+
+        // Then
+        assertThat(response.id()).isEqualTo(id);
+        assertThat(response.slug()).isEqualTo("featured-slug");
+        assertThat(response.title()).isEqualTo("추천 제목");
+        assertThat(response.description()).isEqualTo("추천 설명");
+        assertThat(response.contentUrl()).isEqualTo("https://example.com/featured-content.md");
+        assertThat(response.bannerImageUrl()).isEqualTo("https://example.com/featured-banner.png");
+        assertThat(response.publishedAt()).isEqualTo(PUBLISHED_AT);
+        assertThat(response.isFeatured()).isTrue();
+        assertThat(response.category().slug()).isEqualTo("frontend");
+    }
+
+    @Test
+    @DisplayName("추천 글 없으면 예외")
+    void findFeatured_withNoFeaturedPost_shouldThrowException() {
+        // Given
+        when(postRepository.findFirstByIsFeaturedTrueAndIsHiddenFalseOrderByPublishedAtDescIdDesc())
+                .thenReturn(Optional.empty());
+
+        // When, Then
+        assertThatThrownBy(() -> postService.findFeatured()).isInstanceOf(FeaturedPostNotFoundException.class);
     }
 }
