@@ -27,7 +27,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(CategoryController.class)
+// 컨트롤러 동작만 검증하도록 쓰기 차단 필터를 끔
+@WebMvcTest(value = CategoryController.class, properties = "app.write-api.enabled=true")
 public class CategoryControllerTest {
     @Autowired
     MockMvc mockMvc;

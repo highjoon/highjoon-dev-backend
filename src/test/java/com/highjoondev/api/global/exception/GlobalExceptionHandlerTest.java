@@ -16,7 +16,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(CategoryController.class)
+// 필터가 DispatcherServlet 앞이라 405, 400 대신 403이 나오므로 쓰기 차단 필터를 끔
+@WebMvcTest(value = CategoryController.class, properties = "app.write-api.enabled=true")
 public class GlobalExceptionHandlerTest {
     @Autowired
     MockMvc mockMvc;

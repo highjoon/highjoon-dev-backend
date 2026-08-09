@@ -8,10 +8,12 @@ import java.io.IOException;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Slf4j
+@Order(1)
 @Component
 public class RequestLoggingFilter extends OncePerRequestFilter {
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
@@ -20,6 +22,25 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     private static final String USER_AGENT = "userAgent";
     private static final int USER_AGENT_MAX_LENGTH = 256;
     private static final String EMPTY_VALUE = "-";
+
+    static String maskIp(String ip) {
+        if (ip == null) {
+            return EMPTY_VALUE;
+        }
+
+        int lastDot = ip.lastIndexOf('.');
+        return lastDot < 0 ? ip : ip.substring(0, lastDot) + ".0";
+    }
+
+    static String truncate(String userAgent) {
+        if (userAgent == null) {
+            return EMPTY_VALUE;
+        }
+
+        return userAgent.length() <= USER_AGENT_MAX_LENGTH
+                ? userAgent
+                : userAgent.substring(0, USER_AGENT_MAX_LENGTH) + "...";
+    }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -43,25 +64,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             log.info("{} {} {} {}ms", request.getMethod(), pathWithQuery(request), response.getStatus(), elapsedMs);
             MDC.clear();
         }
-    }
-
-    static String maskIp(String ip) {
-        if (ip == null) {
-            return EMPTY_VALUE;
-        }
-
-        int lastDot = ip.lastIndexOf('.');
-        return lastDot < 0 ? ip : ip.substring(0, lastDot) + ".0";
-    }
-
-    static String truncate(String userAgent) {
-        if (userAgent == null) {
-            return EMPTY_VALUE;
-        }
-
-        return userAgent.length() <= USER_AGENT_MAX_LENGTH
-                ? userAgent
-                : userAgent.substring(0, USER_AGENT_MAX_LENGTH) + "...";
     }
 
     private String pathWithQuery(HttpServletRequest request) {
