@@ -20,6 +20,7 @@ import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -585,5 +590,43 @@ public class PostServiceTest {
         // Then
         assertThat(response.previous().slug()).isEqualTo("prev-slug");
         assertThat(response.next()).isNull();
+    }
+
+    @Test
+    @DisplayName("목록 조회 시 응답 변환과 페이지 정보 유지")
+    void findAll_withPosts_shouldReturnMappedPage() {
+        // Given
+        Pageable pageable = PageRequest.of(1, 2);
+        // 전체 5건 중 2건짜리 페이지. 목록 크기와 전체 건수를 다르게 둬서 페이지 정보 전달을 확인함
+        Page<Post> page = new PageImpl<>(
+                List.of(adjacentPost("first-slug", "첫 제목"), adjacentPost("second-slug", "둘째 제목")), pageable, 5);
+        when(postRepository.findByIsHiddenFalseOrderByPublishedAtDescIdDesc(pageable))
+                .thenReturn(page);
+
+        // When
+        Page<PostResponse> response = postService.findAll(pageable);
+
+        // Then
+        assertThat(response.getContent()).extracting(PostResponse::slug).containsExactly("first-slug", "second-slug");
+        assertThat(response.getContent()).extracting(PostResponse::title).containsExactly("첫 제목", "둘째 제목");
+        assertThat(response.getTotalElements()).isEqualTo(5);
+        assertThat(response.getTotalPages()).isEqualTo(3);
+        assertThat(response.getNumber()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("글이 없으면 빈 목록, 예외 아님")
+    void findAll_withNoPosts_shouldReturnEmptyPage() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        when(postRepository.findByIsHiddenFalseOrderByPublishedAtDescIdDesc(pageable))
+                .thenReturn(Page.empty(pageable));
+
+        // When
+        Page<PostResponse> response = postService.findAll(pageable);
+
+        // Then
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
     }
 }
