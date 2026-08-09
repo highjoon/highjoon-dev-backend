@@ -16,6 +16,8 @@ import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -107,6 +109,12 @@ public class PostService {
                 .orElse(null);
 
         return new PostDetailResponse(PostResponse.from(post), previous, next);
+    }
+
+    public Page<PostResponse> findAll(Pageable pageable) {
+        return postRepository
+                .findByIsHiddenFalseOrderByPublishedAtDescIdDesc(pageable)
+                .map(PostResponse::from);
     }
 
     private Category resolveCategory(UUID categoryId) {
