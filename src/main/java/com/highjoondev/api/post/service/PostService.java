@@ -82,6 +82,12 @@ public class PostService {
         return PostResponse.from(featuredPost);
     }
 
+    @Transactional
+    public void deleteById(UUID id) {
+        Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
+        postRepository.delete(post);
+    }
+
     private Category resolveCategory(UUID categoryId) {
         if (categoryId == null) {
             return null;
