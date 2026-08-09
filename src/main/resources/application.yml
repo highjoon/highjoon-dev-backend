@@ -20,6 +20,8 @@ server:
 app:
   cors:
     allowed-origins: https://www.highjoon-dev.com,https://highjoon-dev.com,http://localhost:3000
+  write-api:
+    enabled: false
 
 management:
   endpoints:
