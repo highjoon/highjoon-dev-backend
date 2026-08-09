@@ -14,7 +14,9 @@ import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
 import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -114,6 +116,19 @@ public class PostService {
     public Page<PostResponse> findAll(Pageable pageable) {
         return postRepository
                 .findByIsHiddenFalseOrderByPublishedAtDescIdDesc(pageable)
+                .map(PostResponse::from);
+    }
+
+    public Page<PostResponse> findByCategorySlug(String slug, Pageable pageable) {
+        Category category = categoryRepository.findBySlug(slug).orElseThrow(() -> new CategoryNotFoundException(slug));
+
+        List<UUID> categoryIds = Stream.concat(
+                        Stream.of(category.getId()),
+                        category.getChildren().stream().map(Category::getId))
+                .toList();
+
+        return postRepository
+                .findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(categoryIds, pageable)
                 .map(PostResponse::from);
     }
 

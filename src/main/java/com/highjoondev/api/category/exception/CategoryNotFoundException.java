@@ -12,4 +12,9 @@ public class CategoryNotFoundException extends RuntimeException {
         super(CategoryErrorCode.NOT_FOUND.message(id));
         this.errorCode = CategoryErrorCode.NOT_FOUND;
     }
+
+    public CategoryNotFoundException(String slug) {
+        super(CategoryErrorCode.NOT_FOUND.message(slug));
+        this.errorCode = CategoryErrorCode.NOT_FOUND;
+    }
 }
