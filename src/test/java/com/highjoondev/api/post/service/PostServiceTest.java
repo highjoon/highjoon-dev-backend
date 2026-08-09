@@ -629,4 +629,95 @@ public class PostServiceTest {
         assertThat(response.getContent()).isEmpty();
         assertThat(response.getTotalElements()).isZero();
     }
+
+    /** 카테고리. id를 심어야 리포지토리에 넘어간 id 목록을 확인할 수 있음 */
+    private Category categoryWithId(String slug, Category parent) {
+        // 빌더가 parent.children에 자기를 넣어줌
+        Category category =
+                Category.builder().title(slug).slug(slug).parent(parent).build();
+        ReflectionTestUtils.setField(category, "id", UUID.randomUUID());
+        return category;
+    }
+
+    @Test
+    @DisplayName("카테고리 조회 시 자식 카테고리 글까지 포함")
+    void findByCategorySlug_withChildren_shouldQueryOwnAndChildIds() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 2);
+        Category parent = categoryWithId("frontend", null);
+        Category firstChild = categoryWithId("react", parent);
+        Category secondChild = categoryWithId("vue", parent);
+        when(categoryRepository.findBySlug("frontend")).thenReturn(Optional.of(parent));
+        // 전체 5건 중 2건짜리 페이지. 목록 크기와 전체 건수를 다르게 둬서 페이지 정보 전달을 확인함
+        when(postRepository.findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(anyList(), eq(pageable)))
+                .thenReturn(new PageImpl<>(
+                        List.of(adjacentPost("first-slug", "첫 제목"), adjacentPost("second-slug", "둘째 제목")),
+                        pageable,
+                        5));
+
+        // When
+        Page<PostResponse> response = postService.findByCategorySlug("frontend", pageable);
+
+        // Then
+        ArgumentCaptor<List<UUID>> captor = ArgumentCaptor.captor();
+        verify(postRepository)
+                .findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(captor.capture(), eq(pageable));
+        assertThat(captor.getValue())
+                .containsExactlyInAnyOrder(parent.getId(), firstChild.getId(), secondChild.getId());
+        assertThat(response.getContent()).extracting(PostResponse::slug).containsExactly("first-slug", "second-slug");
+        assertThat(response.getTotalElements()).isEqualTo(5);
+        assertThat(response.getTotalPages()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("자식 없는 카테고리 조회 시 자기 카테고리 글만")
+    void findByCategorySlug_withoutChildren_shouldQueryOwnIdOnly() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        Category category = categoryWithId("backend", null);
+        when(categoryRepository.findBySlug("backend")).thenReturn(Optional.of(category));
+        when(postRepository.findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(anyList(), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(adjacentPost("only-slug", "유일 제목")), pageable, 1));
+
+        // When
+        postService.findByCategorySlug("backend", pageable);
+
+        // Then
+        ArgumentCaptor<List<UUID>> captor = ArgumentCaptor.captor();
+        verify(postRepository)
+                .findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(captor.capture(), eq(pageable));
+        assertThat(captor.getValue()).containsExactly(category.getId());
+    }
+
+    @Test
+    @DisplayName("없는 slug 조회 시 예외, 글 조회 안 함")
+    void findByCategorySlug_withNonExistentSlug_shouldThrowException() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        when(categoryRepository.findBySlug("unknown")).thenReturn(Optional.empty());
+
+        // When, Then
+        assertThatThrownBy(() -> postService.findByCategorySlug("unknown", pageable))
+                .isInstanceOf(CategoryNotFoundException.class);
+        verify(postRepository, never())
+                .findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(anyList(), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("카테고리에 글이 없으면 빈 목록, 예외 아님")
+    void findByCategorySlug_withNoPosts_shouldReturnEmptyPage() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        Category category = categoryWithId("empty", null);
+        when(categoryRepository.findBySlug("empty")).thenReturn(Optional.of(category));
+        when(postRepository.findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(anyList(), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        // When
+        Page<PostResponse> response = postService.findByCategorySlug("empty", pageable);
+
+        // Then
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+    }
 }
