@@ -449,4 +449,31 @@ public class PostServiceTest {
         // When, Then
         assertThatThrownBy(() -> postService.findFeatured()).isInstanceOf(FeaturedPostNotFoundException.class);
     }
+
+    @Test
+    @DisplayName("있는 id 삭제 시 조회한 엔티티를 삭제")
+    void deleteById_withExistingId_shouldDeletePost() {
+        // Given
+        UUID id = UUID.randomUUID();
+        Post post = existingPost(id);
+        when(postRepository.findById(id)).thenReturn(Optional.of(post));
+
+        // When
+        postService.deleteById(id);
+
+        // Then
+        verify(postRepository).delete(post);
+    }
+
+    @Test
+    @DisplayName("없는 id 삭제 시 예외, 삭제 안 함")
+    void deleteById_withNonExistentId_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        when(postRepository.findById(id)).thenReturn(Optional.empty());
+
+        // When, Then
+        assertThatThrownBy(() -> postService.deleteById(id)).isInstanceOf(PostNotFoundException.class);
+        verify(postRepository, never()).delete(any(Post.class));
+    }
 }
