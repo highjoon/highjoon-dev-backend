@@ -9,7 +9,9 @@ import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import com.highjoondev.api.post.dto.PostCreateRequest;
+import com.highjoondev.api.post.dto.PostDetailResponse;
 import com.highjoondev.api.post.dto.PostResponse;
+import com.highjoondev.api.post.dto.PostSummary;
 import com.highjoondev.api.post.dto.PostUpdateRequest;
 import com.highjoondev.api.post.entity.Post;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
@@ -475,5 +477,113 @@ public class PostServiceTest {
         // When, Then
         assertThatThrownBy(() -> postService.deleteById(id)).isInstanceOf(PostNotFoundException.class);
         verify(postRepository, never()).delete(any(Post.class));
+    }
+
+    /** 상세 조회 대상 글. 앞뒤 글과 구분되도록 값을 따로 둠 */
+    private Post detailPost(String slug, boolean isHidden) {
+        Post post = Post.builder()
+                .slug(slug)
+                .title("상세 제목")
+                .description("상세 설명")
+                .contentUrl("https://example.com/detail-content.md")
+                .bannerImageUrl("https://example.com/detail-banner.png")
+                .publishedAt(PUBLISHED_AT)
+                .isHidden(isHidden)
+                .build();
+        ReflectionTestUtils.setField(post, "id", UUID.randomUUID());
+        return post;
+    }
+
+    private Post adjacentPost(String slug, String title) {
+        return Post.builder()
+                .slug(slug)
+                .title(title)
+                .description("설명")
+                .contentUrl("https://example.com/c.md")
+                .bannerImageUrl("https://example.com/b.png")
+                .publishedAt(NEW_PUBLISHED_AT)
+                .build();
+    }
+
+    @Test
+    @DisplayName("정상 조회 시 앞뒤 글까지 반환")
+    void findBySlug_withValidSlug_shouldReturnDetailResponse() {
+        // Given
+        Post post = detailPost("detail-slug", false);
+        when(postRepository.findBySlug("detail-slug")).thenReturn(Optional.of(post));
+        when(postRepository.findPreviousPost(PUBLISHED_AT, post.getId()))
+                .thenReturn(Optional.of(adjacentPost("prev-slug", "이전 제목")));
+        when(postRepository.findNextPost(PUBLISHED_AT, post.getId()))
+                .thenReturn(Optional.of(adjacentPost("next-slug", "다음 제목")));
+
+        // When
+        PostDetailResponse response = postService.findBySlug("detail-slug");
+
+        // Then
+        assertThat(response.post().slug()).isEqualTo("detail-slug");
+        assertThat(response.post().title()).isEqualTo("상세 제목");
+        assertThat(response.post().description()).isEqualTo("상세 설명");
+        assertThat(response.post().contentUrl()).isEqualTo("https://example.com/detail-content.md");
+        assertThat(response.previous()).isEqualTo(new PostSummary("prev-slug", "이전 제목"));
+        assertThat(response.next()).isEqualTo(new PostSummary("next-slug", "다음 제목"));
+    }
+
+    @Test
+    @DisplayName("없는 slug 조회 시 예외")
+    void findBySlug_withNonExistentSlug_shouldThrowException() {
+        // Given
+        when(postRepository.findBySlug("unknown")).thenReturn(Optional.empty());
+
+        // When, Then
+        assertThatThrownBy(() -> postService.findBySlug("unknown")).isInstanceOf(PostNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("숨김 글 조회 시 예외, 앞뒤 글 조회 안 함")
+    void findBySlug_withHiddenPost_shouldThrowException() {
+        // Given
+        Post post = detailPost("hidden-slug", true);
+        when(postRepository.findBySlug("hidden-slug")).thenReturn(Optional.of(post));
+
+        // When, Then
+        assertThatThrownBy(() -> postService.findBySlug("hidden-slug")).isInstanceOf(PostNotFoundException.class);
+        verify(postRepository, never()).findPreviousPost(any(), any());
+        verify(postRepository, never()).findNextPost(any(), any());
+    }
+
+    @Test
+    @DisplayName("첫 글 조회 시 이전 글은 null")
+    void findBySlug_withFirstPost_shouldReturnNullPrevious() {
+        // Given
+        Post post = detailPost("first-slug", false);
+        when(postRepository.findBySlug("first-slug")).thenReturn(Optional.of(post));
+        when(postRepository.findPreviousPost(PUBLISHED_AT, post.getId())).thenReturn(Optional.empty());
+        when(postRepository.findNextPost(PUBLISHED_AT, post.getId()))
+                .thenReturn(Optional.of(adjacentPost("next-slug", "다음 제목")));
+
+        // When
+        PostDetailResponse response = postService.findBySlug("first-slug");
+
+        // Then
+        assertThat(response.previous()).isNull();
+        assertThat(response.next().slug()).isEqualTo("next-slug");
+    }
+
+    @Test
+    @DisplayName("마지막 글 조회 시 다음 글은 null")
+    void findBySlug_withLastPost_shouldReturnNullNext() {
+        // Given
+        Post post = detailPost("last-slug", false);
+        when(postRepository.findBySlug("last-slug")).thenReturn(Optional.of(post));
+        when(postRepository.findPreviousPost(PUBLISHED_AT, post.getId()))
+                .thenReturn(Optional.of(adjacentPost("prev-slug", "이전 제목")));
+        when(postRepository.findNextPost(PUBLISHED_AT, post.getId())).thenReturn(Optional.empty());
+
+        // When
+        PostDetailResponse response = postService.findBySlug("last-slug");
+
+        // Then
+        assertThat(response.previous().slug()).isEqualTo("prev-slug");
+        assertThat(response.next()).isNull();
     }
 }

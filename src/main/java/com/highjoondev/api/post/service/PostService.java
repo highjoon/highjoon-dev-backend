@@ -4,7 +4,9 @@ import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import com.highjoondev.api.post.dto.PostCreateRequest;
+import com.highjoondev.api.post.dto.PostDetailResponse;
 import com.highjoondev.api.post.dto.PostResponse;
+import com.highjoondev.api.post.dto.PostSummary;
 import com.highjoondev.api.post.dto.PostUpdateRequest;
 import com.highjoondev.api.post.entity.Post;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
@@ -86,6 +88,25 @@ public class PostService {
     public void deleteById(UUID id) {
         Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
         postRepository.delete(post);
+    }
+
+    public PostDetailResponse findBySlug(String slug) {
+        Post post = postRepository.findBySlug(slug).orElseThrow(() -> new PostNotFoundException(slug));
+
+        if (post.isHidden()) {
+            throw new PostNotFoundException(slug);
+        }
+
+        PostSummary previous = postRepository
+                .findPreviousPost(post.getPublishedAt(), post.getId())
+                .map(PostSummary::from)
+                .orElse(null);
+        PostSummary next = postRepository
+                .findNextPost(post.getPublishedAt(), post.getId())
+                .map(PostSummary::from)
+                .orElse(null);
+
+        return new PostDetailResponse(PostResponse.from(post), previous, next);
     }
 
     private Category resolveCategory(UUID categoryId) {
