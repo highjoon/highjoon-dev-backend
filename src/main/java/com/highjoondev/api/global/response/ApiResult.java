@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
 
-@Schema(name = "ApiResult", description = "공통 응답 양식")
+@Schema(description = "공통 응답 양식")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ApiResult<T>(boolean success, T data, ApiError error, Instant timestamp) {
     public static <T> ApiResult<T> ok(T data) {
