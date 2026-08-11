@@ -11,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,12 @@ public class PostRepositoryTest {
 
     @Autowired
     EntityManager entityManager;
+
+    // V7이 넣은 이관 글이 각 테스트가 저장한 글에 섞이지 않도록 비움. 테스트 종료 시 롤백
+    @BeforeEach
+    void clearImportedPosts() {
+        postRepository.deleteAllInBatch();
+    }
 
     private Post.PostBuilder post(String slug, Instant publishedAt) {
         return Post.builder()
