@@ -16,6 +16,7 @@ import com.highjoondev.api.post.dto.PostUpdateRequest;
 import com.highjoondev.api.post.entity.Post;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
 import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
+import com.highjoondev.api.post.exception.FeaturedPostCannotBeHiddenException;
 import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
@@ -122,6 +123,20 @@ public class PostServiceTest {
     }
 
     @Test
+    @DisplayName("추천이면서 숨김으로 생성 시 예외")
+    void create_withFeaturedAndHidden_shouldThrowException() {
+        // Given
+        var request = request(null, true, true);
+
+        // When, Then
+        assertThatThrownBy(() -> postService.create(request)).isInstanceOf(FeaturedPostCannotBeHiddenException.class);
+        verify(postRepository, never()).saveAndFlush(any(Post.class));
+        // 요청만 보고 막으므로 DB 조회 없음
+        verify(postRepository, never()).existsBySlug(any());
+        verify(postRepository, never()).findFirstByIsFeaturedTrue();
+    }
+
+    @Test
     @DisplayName("중복 slug 생성 시 예외")
     void create_withDuplicateSlug_shouldThrowException() {
         // Given
@@ -167,8 +182,8 @@ public class PostServiceTest {
     @Test
     @DisplayName("추천 글로 생성 시 엔티티에 추천 반영")
     void create_withFeatured_shouldSaveAsFeatured() {
-        // Given
-        var request = request(null, true, true);
+        // Given: 추천과 숨김은 함께 못 켜므로 숨김은 끔
+        var request = request(null, true, false);
 
         // When
         postService.create(request);
@@ -177,7 +192,23 @@ public class PostServiceTest {
         ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
         verify(postRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().isFeatured()).isTrue();
+        assertThat(captor.getValue().isHidden()).isFalse();
+    }
+
+    @Test
+    @DisplayName("숨김 글로 생성 시 엔티티에 숨김 반영")
+    void create_withHidden_shouldSaveAsHidden() {
+        // Given
+        var request = request(null, false, true);
+
+        // When
+        postService.create(request);
+
+        // Then
+        ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+        verify(postRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().isHidden()).isTrue();
+        assertThat(captor.getValue().isFeatured()).isFalse();
     }
 
     @Test
@@ -244,7 +275,8 @@ public class PostServiceTest {
         // Given
         UUID id = UUID.randomUUID();
         Post post = existingPost(id);
-        var request = updateRequest("new-slug", null, true, true);
+        // 추천과 숨김은 함께 못 켜므로 추천만 켬
+        var request = updateRequest("new-slug", null, true, false);
         when(postRepository.findById(id)).thenReturn(Optional.of(post));
 
         // When
@@ -257,8 +289,26 @@ public class PostServiceTest {
         assertThat(response.contentUrl()).isEqualTo("https://example.com/new-content.md");
         assertThat(response.bannerImageUrl()).isEqualTo("https://example.com/new-banner.png");
         assertThat(response.publishedAt()).isEqualTo(NEW_PUBLISHED_AT);
-        assertThat(response.isFeatured()).isTrue();
-        assertThat(response.isHidden()).isTrue();
+        // 추천, 숨김은 공개 응답에 없으므로 엔티티로 확인
+        assertThat(post.isFeatured()).isTrue();
+        assertThat(post.isHidden()).isFalse();
+    }
+
+    @Test
+    @DisplayName("숨김으로 수정 시 엔티티에 숨김 반영")
+    void updateById_withHidden_shouldUpdateIsHidden() {
+        // Given
+        UUID id = UUID.randomUUID();
+        Post post = existingPost(id);
+        var request = updateRequest("new-slug", null, false, true);
+        when(postRepository.findById(id)).thenReturn(Optional.of(post));
+
+        // When
+        postService.updateById(id, request);
+
+        // Then
+        assertThat(post.isHidden()).isTrue();
+        assertThat(post.isFeatured()).isFalse();
     }
 
     @Test
@@ -305,6 +355,36 @@ public class PostServiceTest {
     }
 
     @Test
+    @DisplayName("추천이면서 숨김으로 수정 시 예외")
+    void updateById_withFeaturedAndHidden_shouldThrowException() {
+        // Given: 추천이 아니던 글이라 기존 검사로는 빠져나가던 경우
+        UUID id = UUID.randomUUID();
+        var request = updateRequest("new-slug", null, true, true);
+        when(postRepository.findById(id)).thenReturn(Optional.of(existingPost(id)));
+
+        // When, Then
+        assertThatThrownBy(() -> postService.updateById(id, request))
+                .isInstanceOf(FeaturedPostCannotBeHiddenException.class);
+        verify(postRepository, never()).flush();
+    }
+
+    @Test
+    @DisplayName("이미 추천인 글을 숨김으로 수정 시 예외")
+    void updateById_whenFeaturedTurnsHidden_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        Post post = existingPost(id);
+        post.updateIsFeatured(true);
+        var request = updateRequest("new-slug", null, true, true);
+        when(postRepository.findById(id)).thenReturn(Optional.of(post));
+
+        // When, Then
+        assertThatThrownBy(() -> postService.updateById(id, request))
+                .isInstanceOf(FeaturedPostCannotBeHiddenException.class);
+        assertThat(post.isHidden()).isFalse();
+    }
+
+    @Test
     @DisplayName("다른 추천 글이 있는데 추천으로 수정 시 예외")
     void updateById_withExistingFeaturedPost_shouldThrowException() {
         // Given
@@ -332,10 +412,10 @@ public class PostServiceTest {
         when(postRepository.findFirstByIsFeaturedTrueAndIdNot(id)).thenReturn(Optional.empty());
 
         // When
-        PostResponse response = postService.updateById(id, request);
+        postService.updateById(id, request);
 
         // Then
-        assertThat(response.isFeatured()).isTrue();
+        assertThat(post.isFeatured()).isTrue();
     }
 
     @Test
@@ -442,7 +522,6 @@ public class PostServiceTest {
         assertThat(response.contentUrl()).isEqualTo("https://example.com/featured-content.md");
         assertThat(response.bannerImageUrl()).isEqualTo("https://example.com/featured-banner.png");
         assertThat(response.publishedAt()).isEqualTo(PUBLISHED_AT);
-        assertThat(response.isFeatured()).isTrue();
         assertThat(response.category().slug()).isEqualTo("frontend");
     }
 

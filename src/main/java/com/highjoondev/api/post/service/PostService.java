@@ -11,6 +11,7 @@ import com.highjoondev.api.post.dto.PostUpdateRequest;
 import com.highjoondev.api.post.entity.Post;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
 import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
+import com.highjoondev.api.post.exception.FeaturedPostCannotBeHiddenException;
 import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
@@ -32,6 +33,10 @@ public class PostService {
 
     @Transactional
     public PostResponse create(PostCreateRequest request) {
+        if (request.isFeatured() && request.isHidden()) {
+            throw new FeaturedPostCannotBeHiddenException();
+        }
+
         if (postRepository.existsBySlug(request.slug())) {
             throw new DuplicatedPostSlugException(request.slug());
         }
@@ -53,6 +58,12 @@ public class PostService {
     public PostResponse updateById(UUID id, PostUpdateRequest request) {
         Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
 
+        // 추천 게시물을 숨길 수는 없음
+        if (request.isFeatured() && request.isHidden()) {
+            throw new FeaturedPostCannotBeHiddenException();
+        }
+
+        // slug가 중복되는 경우
         if (postRepository.existsBySlugAndIdNot(request.slug(), id)) {
             throw new DuplicatedPostSlugException(request.slug());
         }
