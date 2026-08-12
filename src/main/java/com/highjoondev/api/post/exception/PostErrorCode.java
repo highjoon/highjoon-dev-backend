@@ -6,7 +6,8 @@ public enum PostErrorCode implements ErrorCode {
     NOT_FOUND("POST_NOT_FOUND", "게시물을 찾을 수 없습니다: %s"),
     DUPLICATED_SLUG("POST_DUPLICATED_SLUG", "이미 사용 중인 slug입니다: %s"),
     DUPLICATED_FEATURED_POST("POST_DUPLICATED_FEATURED", "이미 추천 게시물이 있습니다: %s"),
-    FEATURED_NOT_FOUND("POST_FEATURED_NOT_FOUND", "추천 게시물이 존재하지 않습니다");
+    FEATURED_NOT_FOUND("POST_FEATURED_NOT_FOUND", "추천 게시물이 존재하지 않습니다"),
+    FEATURED_CANNOT_BE_HIDDEN("POST_FEATURED_CANNOT_BE_HIDDEN", "추천 게시물은 숨길 수 없습니다");
 
     private final String code;
     private final String message;

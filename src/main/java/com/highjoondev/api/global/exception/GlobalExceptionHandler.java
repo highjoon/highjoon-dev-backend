@@ -7,6 +7,7 @@ import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.global.response.ApiResult;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
 import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
+import com.highjoondev.api.post.exception.FeaturedPostCannotBeHiddenException;
 import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.tag.exception.DuplicatedTagNameException;
@@ -89,6 +90,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResult<Void>> handleFeaturedPostNotFoundException(
             FeaturedPostNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResult.error(exception.getErrorCode().code(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(FeaturedPostCannotBeHiddenException.class)
+    public ResponseEntity<ApiResult<Void>> handleFeaturedPostCannotBeHiddenException(
+            FeaturedPostCannotBeHiddenException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResult.error(exception.getErrorCode().code(), exception.getMessage()));
     }
 

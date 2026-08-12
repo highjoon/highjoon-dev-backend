@@ -14,8 +14,6 @@ public record PostResponse(
         Instant publishedAt,
         int viewCount,
         CategoryRef category,
-        boolean isHidden,
-        boolean isFeatured,
         Instant createdAt,
         Instant updatedAt) {
     public static PostResponse from(Post post) {
@@ -29,8 +27,6 @@ public record PostResponse(
                 post.getPublishedAt(),
                 post.getViewCount(),
                 CategoryRef.from(post.getCategory()),
-                post.isHidden(),
-                post.isFeatured(),
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }
