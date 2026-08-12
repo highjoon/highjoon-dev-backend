@@ -1,6 +1,7 @@
 package com.highjoondev.api.post.controller;
 
 import com.highjoondev.api.global.response.ApiResult;
+import com.highjoondev.api.post.dto.PostCreateRequest;
 import com.highjoondev.api.post.dto.PostDetailResponse;
 import com.highjoondev.api.post.dto.PostResponse;
 import com.highjoondev.api.post.service.PostService;
@@ -11,6 +12,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
@@ -20,17 +23,46 @@ import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-@Tag(name = "Post", description = "게시물 조회 API")
+@Tag(name = "Post", description = "게시물 조회/생성 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/posts")
 public class PostController {
 
     private final PostService postService;
+
+    @Operation(summary = "게시물 생성", description = "새로운 게시물을 생성합니다. categoryId를 넘기지 않으면 미분류로 저장됩니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "생성 성공"),
+        @ApiResponse(
+                responseCode = "400",
+                description = "유효성 검사 실패",
+                content = @Content(schema = @Schema(implementation = ApiResult.class))),
+        @ApiResponse(
+                responseCode = "404",
+                description = "카테고리를 찾을 수 없음",
+                content = @Content(schema = @Schema(implementation = ApiResult.class))),
+        @ApiResponse(
+                responseCode = "409",
+                description = "중복된 slug 또는 이미 추천 게시물이 있음",
+                content = @Content(schema = @Schema(implementation = ApiResult.class)))
+    })
+    @PostMapping
+    public ResponseEntity<ApiResult<PostResponse>> create(@Valid @RequestBody PostCreateRequest request) {
+        PostResponse response = postService.create(request);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{slug}")
+                .buildAndExpand(response.slug())
+                .toUri();
+        return ResponseEntity.created(location).body(ApiResult.ok(response));
+    }
 
     @Operation(
             summary = "게시물 목록 조회",
