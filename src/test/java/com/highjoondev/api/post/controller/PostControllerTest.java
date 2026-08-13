@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
+import com.highjoondev.api.category.exception.CategoryReferenceNotFoundException;
 import com.highjoondev.api.post.dto.CategoryRef;
 import com.highjoondev.api.post.dto.PostCreateRequest;
 import com.highjoondev.api.post.dto.PostDetailResponse;
@@ -320,8 +321,8 @@ public class PostControllerTest {
     }
 
     @Test
-    @DisplayName("없는 카테고리로 생성 시 404")
-    void create_withUnknownCategory_shouldReturn404() throws Exception {
+    @DisplayName("없는 카테고리로 생성 시 400")
+    void create_withUnknownCategory_shouldReturn400() throws Exception {
         var categoryId = UUID.randomUUID();
         var request = new PostCreateRequest(
                 "첫 글",
@@ -333,14 +334,14 @@ public class PostControllerTest {
                 categoryId,
                 false,
                 false);
-        when(postService.create(request)).thenThrow(new CategoryNotFoundException(categoryId));
+        when(postService.create(request)).thenThrow(new CategoryReferenceNotFoundException(categoryId));
 
         mockMvc.perform(post("/api/v1/posts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("CATEGORY_NOT_FOUND"));
+                .andExpect(jsonPath("$.error.code").value("CATEGORY_REFERENCE_NOT_FOUND"));
     }
 
     @Test
@@ -406,8 +407,8 @@ public class PostControllerTest {
     }
 
     @Test
-    @DisplayName("없는 카테고리로 수정 시 404")
-    void update_withUnknownCategory_shouldReturn404() throws Exception {
+    @DisplayName("없는 카테고리로 수정 시 400")
+    void update_withUnknownCategory_shouldReturn400() throws Exception {
         var id = UUID.randomUUID();
         var categoryId = UUID.randomUUID();
         var request = new PostUpdateRequest(
@@ -420,14 +421,14 @@ public class PostControllerTest {
                 categoryId,
                 false,
                 false);
-        when(postService.updateById(id, request)).thenThrow(new CategoryNotFoundException(categoryId));
+        when(postService.updateById(id, request)).thenThrow(new CategoryReferenceNotFoundException(categoryId));
 
         mockMvc.perform(put("/api/v1/posts/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("CATEGORY_NOT_FOUND"));
+                .andExpect(jsonPath("$.error.code").value("CATEGORY_REFERENCE_NOT_FOUND"));
     }
 
     @Test

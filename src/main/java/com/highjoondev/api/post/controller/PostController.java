@@ -47,11 +47,7 @@ public class PostController {
         @ApiResponse(responseCode = "201", description = "생성 성공"),
         @ApiResponse(
                 responseCode = "400",
-                description = "유효성 검사 실패",
-                content = @Content(schema = @Schema(implementation = ApiResult.class))),
-        @ApiResponse(
-                responseCode = "404",
-                description = "카테고리를 찾을 수 없음",
+                description = "유효성 검사 실패 또는 카테고리를 찾을 수 없음",
                 content = @Content(schema = @Schema(implementation = ApiResult.class))),
         @ApiResponse(
                 responseCode = "409",
@@ -76,11 +72,11 @@ public class PostController {
                 content = @Content(schema = @Schema(implementation = PostResponse.class))),
         @ApiResponse(
                 responseCode = "400",
-                description = "유효성 검사 실패 또는 추천 게시물을 숨기려 함",
+                description = "유효성 검사 실패, 추천 게시물을 숨기려 함, 또는 카테고리를 찾을 수 없음",
                 content = @Content(schema = @Schema(implementation = ApiResult.class))),
         @ApiResponse(
                 responseCode = "404",
-                description = "게시물이나 카테고리를 찾을 수 없음",
+                description = "게시물을 찾을 수 없음",
                 content = @Content(schema = @Schema(implementation = ApiResult.class))),
         @ApiResponse(
                 responseCode = "409",
