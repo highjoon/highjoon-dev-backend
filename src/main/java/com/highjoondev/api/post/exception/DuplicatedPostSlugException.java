@@ -1,14 +1,10 @@
 package com.highjoondev.api.post.exception;
 
-import com.highjoondev.api.global.exception.ErrorCode;
-import lombok.Getter;
+import com.highjoondev.api.global.exception.BusinessException;
 
-@Getter
-public class DuplicatedPostSlugException extends RuntimeException {
-    private final ErrorCode errorCode;
+public class DuplicatedPostSlugException extends BusinessException {
 
     public DuplicatedPostSlugException(String slug) {
-        super(PostErrorCode.DUPLICATED_SLUG.message(slug));
-        this.errorCode = PostErrorCode.DUPLICATED_SLUG;
+        super(PostErrorCode.DUPLICATED_SLUG, slug);
     }
 }

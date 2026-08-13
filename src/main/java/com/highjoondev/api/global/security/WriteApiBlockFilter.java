@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -48,7 +47,7 @@ public class WriteApiBlockFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         log.warn("쓰기 요청 차단: {} {}", request.getMethod(), request.getRequestURI());
 
-        response.setStatus(HttpStatus.FORBIDDEN.value());
+        response.setStatus(CommonErrorCode.WRITE_NOT_ALLOWED.status().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         objectMapper.writeValue(

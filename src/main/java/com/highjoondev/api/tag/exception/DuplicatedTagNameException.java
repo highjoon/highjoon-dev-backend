@@ -1,14 +1,10 @@
 package com.highjoondev.api.tag.exception;
 
-import com.highjoondev.api.global.exception.ErrorCode;
-import lombok.Getter;
+import com.highjoondev.api.global.exception.BusinessException;
 
-@Getter
-public class DuplicatedTagNameException extends RuntimeException {
-    private final ErrorCode errorCode;
+public class DuplicatedTagNameException extends BusinessException {
 
     public DuplicatedTagNameException(String name) {
-        super(TagErrorCode.DUPLICATED_NAME.message(name));
-        this.errorCode = TagErrorCode.DUPLICATED_NAME;
+        super(TagErrorCode.DUPLICATED_NAME, name);
     }
 }

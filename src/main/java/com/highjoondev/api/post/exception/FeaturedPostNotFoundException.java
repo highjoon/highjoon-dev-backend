@@ -1,14 +1,10 @@
 package com.highjoondev.api.post.exception;
 
-import com.highjoondev.api.global.exception.ErrorCode;
-import lombok.Getter;
+import com.highjoondev.api.global.exception.BusinessException;
 
-@Getter
-public class FeaturedPostNotFoundException extends RuntimeException {
-    private final ErrorCode errorCode;
+public class FeaturedPostNotFoundException extends BusinessException {
 
     public FeaturedPostNotFoundException() {
-        super(PostErrorCode.FEATURED_NOT_FOUND.message());
-        this.errorCode = PostErrorCode.FEATURED_NOT_FOUND;
+        super(PostErrorCode.FEATURED_NOT_FOUND);
     }
 }
