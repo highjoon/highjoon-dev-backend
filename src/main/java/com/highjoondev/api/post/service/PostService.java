@@ -2,6 +2,7 @@ package com.highjoondev.api.post.service;
 
 import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
+import com.highjoondev.api.category.exception.CategoryReferenceNotFoundException;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import com.highjoondev.api.post.dto.PostCreateRequest;
 import com.highjoondev.api.post.dto.PostDetailResponse;
@@ -148,6 +149,8 @@ public class PostService {
             return null;
         }
 
-        return categoryRepository.findById(categoryId).orElseThrow(() -> new CategoryNotFoundException(categoryId));
+        return categoryRepository
+                .findById(categoryId)
+                .orElseThrow(() -> new CategoryReferenceNotFoundException(categoryId));
     }
 }

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 
 import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.exception.CategoryNotFoundException;
+import com.highjoondev.api.category.exception.CategoryReferenceNotFoundException;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import com.highjoondev.api.post.dto.PostCreateRequest;
 import com.highjoondev.api.post.dto.PostDetailResponse;
@@ -166,7 +167,7 @@ public class PostServiceTest {
     }
 
     @Test
-    @DisplayName("추천이 아니면 추천 중복 검사 건너뜀")
+    @DisplayName("추천이 아니면 생성 시 추천 중복 검사 건너뜀")
     void create_withoutFeatured_shouldSkipFeaturedCheck() {
         // Given
         var request = request(null, false, false);
@@ -226,7 +227,7 @@ public class PostServiceTest {
     }
 
     @Test
-    @DisplayName("카테고리 지정 시 응답에 카테고리 포함")
+    @DisplayName("카테고리 지정 시 생성 응답에 카테고리 포함")
     void create_withCategoryId_shouldSaveWithCategory() {
         // Given
         UUID categoryId = UUID.randomUUID();
@@ -245,7 +246,7 @@ public class PostServiceTest {
     }
 
     @Test
-    @DisplayName("없는 카테고리 지정 시 예외")
+    @DisplayName("없는 카테고리 지정 시 생성 예외")
     void create_withNonExistentCategoryId_shouldThrowException() {
         // Given
         UUID categoryId = UUID.randomUUID();
@@ -253,7 +254,7 @@ public class PostServiceTest {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.empty());
 
         // When, Then
-        assertThatThrownBy(() -> postService.create(request)).isInstanceOf(CategoryNotFoundException.class);
+        assertThatThrownBy(() -> postService.create(request)).isInstanceOf(CategoryReferenceNotFoundException.class);
         verify(postRepository, never()).saveAndFlush(any(Post.class));
     }
 
@@ -419,7 +420,7 @@ public class PostServiceTest {
     }
 
     @Test
-    @DisplayName("추천이 아니면 추천 중복 검사 건너뜀")
+    @DisplayName("추천이 아니면 수정 시 추천 중복 검사 건너뜀")
     void updateById_withoutFeatured_shouldSkipFeaturedCheck() {
         // Given
         UUID id = UUID.randomUUID();
@@ -434,7 +435,7 @@ public class PostServiceTest {
     }
 
     @Test
-    @DisplayName("카테고리 지정 시 응답에 카테고리 포함")
+    @DisplayName("카테고리 지정 시 수정 응답에 카테고리 포함")
     void updateById_withCategoryId_shouldUpdateCategory() {
         // Given
         UUID id = UUID.randomUUID();
@@ -475,7 +476,7 @@ public class PostServiceTest {
     }
 
     @Test
-    @DisplayName("없는 카테고리 지정 시 예외")
+    @DisplayName("없는 카테고리 지정 시 수정 예외")
     void updateById_withNonExistentCategoryId_shouldThrowException() {
         // Given
         UUID id = UUID.randomUUID();
@@ -485,7 +486,8 @@ public class PostServiceTest {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.empty());
 
         // When, Then
-        assertThatThrownBy(() -> postService.updateById(id, request)).isInstanceOf(CategoryNotFoundException.class);
+        assertThatThrownBy(() -> postService.updateById(id, request))
+                .isInstanceOf(CategoryReferenceNotFoundException.class);
     }
 
     @Test
