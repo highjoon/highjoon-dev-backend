@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,8 +20,10 @@ import com.highjoondev.api.post.dto.PostCreateRequest;
 import com.highjoondev.api.post.dto.PostDetailResponse;
 import com.highjoondev.api.post.dto.PostResponse;
 import com.highjoondev.api.post.dto.PostSummary;
+import com.highjoondev.api.post.dto.PostUpdateRequest;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
 import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
+import com.highjoondev.api.post.exception.FeaturedPostCannotBeHiddenException;
 import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.service.PostService;
@@ -70,6 +73,19 @@ public class PostControllerTest {
 
     private PostCreateRequest createRequest(String title, String slug) {
         return new PostCreateRequest(
+                title,
+                slug,
+                "요약",
+                "https://example.com/content.md",
+                "https://example.com/banner.png",
+                PUBLISHED_AT,
+                null,
+                false,
+                false);
+    }
+
+    private PostUpdateRequest updateRequest(String title, String slug) {
+        return new PostUpdateRequest(
                 title,
                 slug,
                 "요약",
@@ -325,5 +341,191 @@ public class PostControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("CATEGORY_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("게시물 수정 시 200과 수정 결과")
+    void update_withValidRequest_shouldReturn200() throws Exception {
+        var id = UUID.randomUUID();
+        var request = updateRequest("고친 글", "fixed");
+        when(postService.updateById(id, request)).thenReturn(postResponse("fixed", "고친 글"));
+
+        mockMvc.perform(put("/api/v1/posts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.slug").value("fixed"))
+                .andExpect(jsonPath("$.data.title").value("고친 글"));
+
+        verify(postService).updateById(id, request);
+    }
+
+    @Test
+    @DisplayName("수정 시 제목이 비면 400")
+    void update_withBlankTitle_shouldReturn400() throws Exception {
+        var request = updateRequest("", "fixed");
+
+        mockMvc.perform(put("/api/v1/posts/{id}", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+
+        verify(postService, never()).updateById(any(), any());
+    }
+
+    @Test
+    @DisplayName("UUID 형식이 아닌 id로 수정 시 400")
+    void update_withMalformedId_shouldReturn400() throws Exception {
+        var request = updateRequest("고친 글", "fixed");
+
+        mockMvc.perform(put("/api/v1/posts/{id}", "not-a-uuid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(postService, never()).updateById(any(), any());
+    }
+
+    @Test
+    @DisplayName("없는 게시물 수정 시 404")
+    void update_whenNotFound_shouldReturn404() throws Exception {
+        var id = UUID.randomUUID();
+        var request = updateRequest("고친 글", "fixed");
+        when(postService.updateById(id, request)).thenThrow(new PostNotFoundException(id));
+
+        mockMvc.perform(put("/api/v1/posts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("POST_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("없는 카테고리로 수정 시 404")
+    void update_withUnknownCategory_shouldReturn404() throws Exception {
+        var id = UUID.randomUUID();
+        var categoryId = UUID.randomUUID();
+        var request = new PostUpdateRequest(
+                "고친 글",
+                "fixed",
+                "요약",
+                "https://example.com/content.md",
+                "https://example.com/banner.png",
+                PUBLISHED_AT,
+                categoryId,
+                false,
+                false);
+        when(postService.updateById(id, request)).thenThrow(new CategoryNotFoundException(categoryId));
+
+        mockMvc.perform(put("/api/v1/posts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("CATEGORY_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("중복 slug로 수정 시 409")
+    void update_withDuplicateSlug_shouldReturn409() throws Exception {
+        var id = UUID.randomUUID();
+        var request = updateRequest("고친 글", "fixed");
+        when(postService.updateById(id, request)).thenThrow(new DuplicatedPostSlugException("fixed"));
+
+        mockMvc.perform(put("/api/v1/posts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("POST_DUPLICATED_SLUG"));
+    }
+
+    @Test
+    @DisplayName("다른 추천 게시물이 이미 있으면 409")
+    void update_withDuplicateFeatured_shouldReturn409() throws Exception {
+        var id = UUID.randomUUID();
+        var request = new PostUpdateRequest(
+                "고친 글",
+                "fixed",
+                "요약",
+                "https://example.com/content.md",
+                "https://example.com/banner.png",
+                PUBLISHED_AT,
+                null,
+                true,
+                false);
+        when(postService.updateById(id, request)).thenThrow(new DuplicatedFeaturedPostException(UUID.randomUUID()));
+
+        mockMvc.perform(put("/api/v1/posts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("POST_DUPLICATED_FEATURED"));
+    }
+
+    @Test
+    @DisplayName("추천 게시물을 숨기려 하면 400")
+    void update_withFeaturedAndHidden_shouldReturn400() throws Exception {
+        var id = UUID.randomUUID();
+        var request = new PostUpdateRequest(
+                "고친 글",
+                "fixed",
+                "요약",
+                "https://example.com/content.md",
+                "https://example.com/banner.png",
+                PUBLISHED_AT,
+                null,
+                true,
+                true);
+        when(postService.updateById(id, request)).thenThrow(new FeaturedPostCannotBeHiddenException());
+
+        mockMvc.perform(put("/api/v1/posts/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("POST_FEATURED_CANNOT_BE_HIDDEN"));
+    }
+
+    @Test
+    @DisplayName("게시물 제거 시 200과 빈 본문")
+    void delete_shouldReturn200() throws Exception {
+        var id = UUID.randomUUID();
+
+        // ApiResult의 NON_NULL 때문에 data 키 자체가 빠짐
+        mockMvc.perform(delete("/api/v1/posts/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").doesNotExist());
+
+        verify(postService).deleteById(id);
+    }
+
+    @Test
+    @DisplayName("없는 게시물 제거 시 404")
+    void delete_whenNotFound_shouldReturn404() throws Exception {
+        var id = UUID.randomUUID();
+        doThrow(new PostNotFoundException(id)).when(postService).deleteById(id);
+
+        mockMvc.perform(delete("/api/v1/posts/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("POST_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("UUID 형식이 아닌 id로 제거 시 400")
+    void delete_withMalformedId_shouldReturn400() throws Exception {
+        mockMvc.perform(delete("/api/v1/posts/{id}", "not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(postService, never()).deleteById(any());
     }
 }
