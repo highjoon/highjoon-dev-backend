@@ -1,17 +1,20 @@
 package com.highjoondev.api.tag.exception;
 
 import com.highjoondev.api.global.exception.ErrorCode;
+import org.springframework.http.HttpStatus;
 
 public enum TagErrorCode implements ErrorCode {
-    NOT_FOUND("TAG_NOT_FOUND", "태그를 찾을 수 없습니다: %s"),
-    DUPLICATED_NAME("TAG_DUPLICATED_NAME", "이미 사용 중인 태그 이름입니다: %s");
+    NOT_FOUND("TAG_NOT_FOUND", "태그를 찾을 수 없습니다: %s", HttpStatus.NOT_FOUND),
+    DUPLICATED_NAME("TAG_DUPLICATED_NAME", "이미 사용 중인 태그 이름입니다: %s", HttpStatus.CONFLICT);
 
     private final String code;
     private final String message;
+    private final HttpStatus status;
 
-    TagErrorCode(String code, String message) {
+    TagErrorCode(String code, String message, HttpStatus status) {
         this.code = code;
         this.message = message;
+        this.status = status;
     }
 
     @Override
@@ -22,5 +25,10 @@ public enum TagErrorCode implements ErrorCode {
     @Override
     public String message(Object... args) {
         return String.format(message, args);
+    }
+
+    @Override
+    public HttpStatus status() {
+        return status;
     }
 }
