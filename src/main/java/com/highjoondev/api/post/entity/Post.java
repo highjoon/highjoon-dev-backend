@@ -1,6 +1,8 @@
 package com.highjoondev.api.post.entity;
 
 import com.highjoondev.api.category.entity.Category;
+import com.highjoondev.api.tag.entity.Tag;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -9,8 +11,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -28,6 +34,9 @@ import org.hibernate.annotations.UpdateTimestamp;
         })
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Post {
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final Set<PostTag> postTags = new LinkedHashSet<>();
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -116,5 +125,10 @@ public class Post {
 
     public void updateIsHidden(boolean hidden) {
         this.isHidden = hidden;
+    }
+
+    public void updateTags(List<Tag> tags) {
+        postTags.clear();
+        tags.forEach(tag -> postTags.add(PostTag.builder().post(this).tag(tag).build()));
     }
 }

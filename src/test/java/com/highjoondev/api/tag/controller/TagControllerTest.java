@@ -41,7 +41,7 @@ public class TagControllerTest {
     void create_withValidRequest_shouldReturn201() throws Exception {
         // Given
         var request = new TagCreateRequest("react");
-        var response = new TagResponse(UUID.randomUUID(), "react", Instant.now());
+        var response = new TagResponse(UUID.randomUUID(), "react", 0, Instant.now());
         when(tagService.create(request)).thenReturn(response);
 
         // When / Then
@@ -82,7 +82,7 @@ public class TagControllerTest {
     @Test
     void findById_whenFound_shouldReturn200() throws Exception {
         UUID id = UUID.randomUUID();
-        when(tagService.findById(id)).thenReturn(new TagResponse(id, "react", Instant.now()));
+        when(tagService.findById(id)).thenReturn(new TagResponse(id, "react", 0, Instant.now()));
 
         mockMvc.perform(get("/api/v1/tags/{id}", id))
                 .andExpect(status().isOk())
@@ -112,7 +112,7 @@ public class TagControllerTest {
 
     @Test
     void findAll_shouldReturn200WithTags() throws Exception {
-        when(tagService.findAll()).thenReturn(List.of(new TagResponse(UUID.randomUUID(), "react", Instant.now())));
+        when(tagService.findAll()).thenReturn(List.of(new TagResponse(UUID.randomUUID(), "react", 0, Instant.now())));
 
         mockMvc.perform(get("/api/v1/tags"))
                 .andExpect(status().isOk())
@@ -135,7 +135,7 @@ public class TagControllerTest {
     void update_shouldReturn200() throws Exception {
         UUID id = UUID.randomUUID();
         var request = new TagUpdateRequest("react");
-        when(tagService.updateById(id, request)).thenReturn(new TagResponse(id, "react", Instant.now()));
+        when(tagService.updateById(id, request)).thenReturn(new TagResponse(id, "react", 0, Instant.now()));
 
         mockMvc.perform(put("/api/v1/tags/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)

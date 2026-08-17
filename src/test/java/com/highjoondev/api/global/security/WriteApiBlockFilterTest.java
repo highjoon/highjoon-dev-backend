@@ -83,7 +83,7 @@ public class WriteApiBlockFilterTest {
     @Test
     @DisplayName("GET 요청은 차단 안 함")
     void get_shouldReachService() throws Exception {
-        when(tagService.findAll()).thenReturn(List.of(new TagResponse(UUID.randomUUID(), "react", Instant.now())));
+        when(tagService.findAll()).thenReturn(List.of(new TagResponse(UUID.randomUUID(), "react", 0, Instant.now())));
 
         mockMvc.perform(get("/api/v1/tags"))
                 .andExpect(status().isOk())

@@ -2,6 +2,8 @@ package com.highjoondev.api.post.dto;
 
 import com.highjoondev.api.post.entity.Post;
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 public record PostResponse(
@@ -14,6 +16,7 @@ public record PostResponse(
         Instant publishedAt,
         int viewCount,
         CategoryRef category,
+        List<TagRef> tags,
         Instant createdAt,
         Instant updatedAt) {
     public static PostResponse from(Post post) {
@@ -27,6 +30,10 @@ public record PostResponse(
                 post.getPublishedAt(),
                 post.getViewCount(),
                 CategoryRef.from(post.getCategory()),
+                post.getPostTags().stream()
+                        .map(postTag -> TagRef.from(postTag.getTag()))
+                        .sorted(Comparator.comparing(TagRef::name))
+                        .toList(),
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }
