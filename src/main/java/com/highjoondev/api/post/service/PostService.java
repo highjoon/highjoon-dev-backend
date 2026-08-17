@@ -125,23 +125,44 @@ public class PostService {
         return new PostDetailResponse(PostResponse.from(post), previous, next);
     }
 
-    public Page<PostResponse> findAll(Pageable pageable) {
-        return postRepository
-                .findByIsHiddenFalseOrderByPublishedAtDescIdDesc(pageable)
-                .map(PostResponse::from);
+    public Page<PostResponse> findAll(String categorySlug, String tagName, Pageable pageable) {
+        return findPosts(categorySlug, tagName, pageable).map(PostResponse::from);
     }
 
-    public Page<PostResponse> findByCategorySlug(String slug, Pageable pageable) {
-        Category category = categoryRepository.findBySlug(slug).orElseThrow(() -> new CategoryNotFoundException(slug));
+    /** 넘어온 조건에 맞는 조회를 고름 */
+    private Page<Post> findPosts(String categorySlug, String tagName, Pageable pageable) {
+        if (categorySlug == null && tagName == null) {
+            return postRepository.findByIsHiddenFalseOrderByPublishedAtDescIdDesc(pageable);
+        }
 
-        List<UUID> categoryIds = Stream.concat(
+        /* tagName만 넘어온 경우 */
+        if (categorySlug == null) {
+            return postRepository.findByIsHiddenFalseAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
+                    tagName, pageable);
+        }
+
+        List<UUID> categoryIds = resolveCategoryIds(categorySlug);
+
+        /* categorySlug만 넘어온 경우 */
+        if (tagName == null) {
+            return postRepository.findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(categoryIds, pageable);
+        }
+
+        /* tagName, categorySlug 둘 다 넘어온 경우 */
+        return postRepository.findByIsHiddenFalseAndCategoryIdInAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
+                categoryIds, tagName, pageable);
+    }
+
+    /** 카테고리 자신과 자식 id. 손자는 안 봄 */
+    private List<UUID> resolveCategoryIds(String categorySlug) {
+        Category category = categoryRepository
+                .findBySlug(categorySlug)
+                .orElseThrow(() -> new CategoryNotFoundException(categorySlug));
+
+        return Stream.concat(
                         Stream.of(category.getId()),
                         category.getChildren().stream().map(Category::getId))
                 .toList();
-
-        return postRepository
-                .findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(categoryIds, pageable)
-                .map(PostResponse::from);
     }
 
     private Category resolveCategory(UUID categoryId) {

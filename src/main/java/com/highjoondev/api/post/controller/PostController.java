@@ -109,7 +109,8 @@ public class PostController {
 
     @Operation(
             summary = "게시물 목록 조회",
-            description = "숨김이 아닌 게시물을 최신순으로 조회합니다. category를 넘기면 해당 카테고리와 하위 카테고리의 게시물만 조회합니다. "
+            description = "숨김이 아닌 게시물을 최신순으로 조회합니다. category를 넘기면 해당 카테고리와 하위 카테고리의 게시물만, "
+                    + "tag를 넘기면 그 태그가 붙은 게시물만 조회합니다. 둘 다 넘기면 두 조건을 모두 만족하는 게시물만 조회합니다. "
                     + "정렬은 발행일 최신순으로 고정이라 sort 파라미터는 반영되지 않습니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -121,9 +122,9 @@ public class PostController {
     @GetMapping
     public ResponseEntity<ApiResult<PagedModel<PostResponse>>> findAll(
             @Parameter(description = "카테고리 slug") @RequestParam(required = false) String category,
+            @Parameter(description = "태그 이름") @RequestParam(required = false) String tag,
             @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-        Page<PostResponse> posts =
-                (category == null) ? postService.findAll(pageable) : postService.findByCategorySlug(category, pageable);
+        Page<PostResponse> posts = postService.findAll(category, tag, pageable);
         return ResponseEntity.ok(ApiResult.ok(new PagedModel<>(posts)));
     }
 

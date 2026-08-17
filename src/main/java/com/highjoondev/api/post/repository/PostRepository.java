@@ -83,9 +83,22 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     /**
      * 태그별 목록
+     * - 발행일, id 순으로 정렬
      * @param tagName 태그 이름
      * @param pageable 페이지네이션
      */
     @EntityGraph(attributePaths = {"category", "category.parent"})
     Page<Post> findByIsHiddenFalseAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(String tagName, Pageable pageable);
+
+    /**
+     * 카테고리와 태그로 거른 목록
+     * - 두 조건을 모두 만족하는 글만
+     * - 발행일, id 순으로 정렬
+     * @param categoryIds 카테고리 ID 목록
+     * @param tagName 태그 이름
+     * @param pageable 페이지네이션
+     */
+    @EntityGraph(attributePaths = {"category", "category.parent"})
+    Page<Post> findByIsHiddenFalseAndCategoryIdInAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
+            Collection<UUID> categoryIds, String tagName, Pageable pageable);
 }
