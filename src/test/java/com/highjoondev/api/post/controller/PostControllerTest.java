@@ -22,6 +22,7 @@ import com.highjoondev.api.post.dto.PostDetailResponse;
 import com.highjoondev.api.post.dto.PostResponse;
 import com.highjoondev.api.post.dto.PostSummary;
 import com.highjoondev.api.post.dto.PostUpdateRequest;
+import com.highjoondev.api.post.dto.TagRef;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
 import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
 import com.highjoondev.api.post.exception.FeaturedPostCannotBeHiddenException;
@@ -68,6 +69,7 @@ public class PostControllerTest {
                 PUBLISHED_AT,
                 0,
                 new CategoryRef(UUID.randomUUID(), "react", "React", null),
+                List.of(new TagRef(UUID.randomUUID(), "react")),
                 PUBLISHED_AT,
                 PUBLISHED_AT);
     }

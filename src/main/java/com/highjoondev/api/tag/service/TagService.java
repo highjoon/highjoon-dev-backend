@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,24 +30,22 @@ public class TagService {
         Tag tag = Tag.builder().name(name).build();
         tagRepository.save(tag);
 
-        return TagResponse.from(tag);
+        return TagResponse.from(tag, 0);
     }
 
     public List<TagResponse> findAll() {
-        return tagRepository.findAll(Sort.by("name")).stream()
-                .map(TagResponse::from)
-                .toList();
+        return tagRepository.findAllWithPostCount();
     }
 
     public TagResponse findById(UUID id) {
         Tag tag = tagRepository.findById(id).orElseThrow(() -> new TagNotFoundException(id));
-        return TagResponse.from(tag);
+        return TagResponse.from(tag, tagRepository.countPostsByTagId(id));
     }
 
     public TagResponse findByName(String name) {
         String normalized = normalizeName(name);
         Tag tag = tagRepository.findByName(normalized).orElseThrow(() -> new TagNotFoundException(normalized));
-        return TagResponse.from(tag);
+        return TagResponse.from(tag, tagRepository.countPostsByTagId(tag.getId()));
     }
 
     @Transactional
@@ -62,7 +59,7 @@ public class TagService {
 
         tag.update(name);
 
-        return TagResponse.from(tag);
+        return TagResponse.from(tag, tagRepository.countPostsByTagId(id));
     }
 
     @Transactional

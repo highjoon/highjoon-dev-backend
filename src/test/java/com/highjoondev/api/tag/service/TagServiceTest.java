@@ -15,6 +15,7 @@ import com.highjoondev.api.tag.entity.Tag;
 import com.highjoondev.api.tag.exception.DuplicatedTagNameException;
 import com.highjoondev.api.tag.exception.TagNotFoundException;
 import com.highjoondev.api.tag.repository.TagRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,7 +24,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Sort;
 
 @ExtendWith(MockitoExtension.class)
 public class TagServiceTest {
@@ -85,10 +85,10 @@ public class TagServiceTest {
     @Test
     void findAll_shouldReturnAllTags() {
         // Given
-        when(tagRepository.findAll(Sort.by("name")))
+        when(tagRepository.findAllWithPostCount())
                 .thenReturn(List.of(
-                        Tag.builder().name("react").build(),
-                        Tag.builder().name("nextjs").build()));
+                        new TagResponse(UUID.randomUUID(), "react", 3, Instant.now()),
+                        new TagResponse(UUID.randomUUID(), "nextjs", 0, Instant.now())));
 
         // When
         List<TagResponse> responses = tagService.findAll();
@@ -101,7 +101,7 @@ public class TagServiceTest {
     @Test
     void findAll_whenNoTags_shouldReturnEmptyList() {
         // Given
-        when(tagRepository.findAll(Sort.by("name"))).thenReturn(List.of());
+        when(tagRepository.findAllWithPostCount()).thenReturn(List.of());
 
         // When
         List<TagResponse> responses = tagService.findAll();

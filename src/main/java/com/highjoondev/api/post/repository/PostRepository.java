@@ -18,7 +18,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     boolean existsBySlugAndIdNot(String slug, UUID id);
 
     /** 수정, 삭제도 쓰는 조회라 숨김 여부로 거르지 않음 */
-    @EntityGraph(attributePaths = {"category", "category.parent"})
+    @EntityGraph(attributePaths = {"category", "category.parent", "postTags", "postTags.tag"})
     Optional<Post> findBySlug(String slug);
 
     /** 추천 자리가 찼는지 검사용. 숨긴 글도 포함해서 조회 */
@@ -80,4 +80,12 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
      * @param id 검사에서 제외할 게시물 ID
      */
     Optional<Post> findFirstByIsFeaturedTrueAndIdNot(UUID id);
+
+    /**
+     * 태그별 목록
+     * @param tagName 태그 이름
+     * @param pageable 페이지네이션
+     */
+    @EntityGraph(attributePaths = {"category", "category.parent"})
+    Page<Post> findByIsHiddenFalseAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(String tagName, Pageable pageable);
 }
