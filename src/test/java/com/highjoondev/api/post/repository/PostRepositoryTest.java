@@ -7,6 +7,8 @@ import com.highjoondev.api.TestcontainersConfig;
 import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.repository.CategoryRepository;
 import com.highjoondev.api.post.entity.Post;
+import com.highjoondev.api.tag.entity.Tag;
+import com.highjoondev.api.tag.repository.TagRepository;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
@@ -19,6 +21,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
 @DataJpaTest
@@ -35,6 +38,9 @@ public class PostRepositoryTest {
 
     @Autowired
     CategoryRepository categoryRepository;
+
+    @Autowired
+    TagRepository tagRepository;
 
     @Autowired
     EntityManager entityManager;
@@ -57,6 +63,17 @@ public class PostRepositoryTest {
 
     private Post save(Post.PostBuilder builder) {
         return postRepository.saveAndFlush(builder.build());
+    }
+
+    // V4가 넣은 태그와 겹치지 않는 이름만 씀
+    private Tag tag(String name) {
+        return tagRepository.saveAndFlush(Tag.builder().name(name).build());
+    }
+
+    private Post save(Post.PostBuilder builder, Tag... tags) {
+        Post post = builder.build();
+        post.updateTags(List.of(tags));
+        return postRepository.saveAndFlush(post);
     }
 
     @Test
@@ -356,5 +373,121 @@ public class PostRepositoryTest {
         // Then
         Post reloaded = postRepository.findById(postId).orElseThrow();
         assertThat(reloaded.getCategory()).isNull();
+    }
+
+    @Test
+    @DisplayName("태그별 조회 시 숨김, 다른 태그 제외")
+    void findByTagName_shouldReturnOnlyMatchingVisiblePosts() {
+        // Given
+        Tag spring = tag("spring");
+        Tag jpa = tag("jpa");
+
+        save(post("with-spring", DAY_3), spring);
+        save(post("with-both", DAY_2), spring, jpa);
+        save(post("with-spring-hidden", DAY_1).isHidden(true), spring);
+        save(post("with-jpa-only", DAY_3), jpa);
+        save(post("no-tag", DAY_3));
+
+        // When
+        List<String> slugs = postRepository
+                .findByIsHiddenFalseAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc("spring", PageRequest.of(0, 10))
+                .map(Post::getSlug)
+                .getContent();
+
+        // Then
+        assertThat(slugs).containsExactly("with-spring", "with-both");
+    }
+
+    @Test
+    @DisplayName("태그가 여럿인 글도 결과에 한 번만")
+    void findByTagName_withMultiTaggedPost_shouldNotDuplicate() {
+        // Given: 조인으로 행이 불어나면 같은 글이 두 번 나옴
+        Tag spring = tag("spring");
+        Tag jpa = tag("jpa");
+        Tag docker = tag("docker");
+        save(post("many-tags", DAY_1), spring, jpa, docker);
+
+        // When
+        Page<Post> page = postRepository.findByIsHiddenFalseAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
+                "spring", PageRequest.of(0, 10));
+
+        // Then
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent()).extracting(Post::getSlug).containsExactly("many-tags");
+    }
+
+    @Test
+    @DisplayName("없는 태그 이름 조회 시 빈 결과")
+    void findByTagName_withUnknownTag_shouldReturnEmpty() {
+        // Given
+        save(post("with-spring", DAY_1), tag("spring"));
+
+        // When, Then
+        assertThat(postRepository
+                        .findByIsHiddenFalseAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
+                                "없는태그", PageRequest.of(0, 10))
+                        .getContent())
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("카테고리와 태그를 함께 주면 둘 다 만족하는 글만")
+    void findByCategoryIdsAndTagName_shouldRequireBothConditions() {
+        // Given
+        // V2가 넣은 카테고리와 겹치지 않는 slug만 씀
+        Category backend = categoryRepository.saveAndFlush(
+                Category.builder().title("백엔드").slug("cat-backend").build());
+        Category frontend = categoryRepository.saveAndFlush(
+                Category.builder().title("프론트").slug("cat-frontend").build());
+        Tag spring = tag("spring");
+        Tag jpa = tag("jpa");
+
+        save(post("backend-spring", DAY_3).category(backend), spring);
+        save(post("backend-jpa", DAY_2).category(backend), jpa);
+        save(post("frontend-spring", DAY_3).category(frontend), spring);
+        save(post("backend-spring-hidden", DAY_1).category(backend).isHidden(true), spring);
+
+        // When
+        List<String> slugs = postRepository
+                .findByIsHiddenFalseAndCategoryIdInAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
+                        List.of(backend.getId()), "spring", PageRequest.of(0, 10))
+                .map(Post::getSlug)
+                .getContent();
+
+        // Then
+        assertThat(slugs).containsExactly("backend-spring");
+    }
+
+    @Test
+    @DisplayName("상세 조회 시 태그까지 함께 가져옴")
+    void findBySlug_shouldLoadTags() {
+        // Given
+        save(post("with-tags", DAY_1), tag("spring"), tag("jpa"));
+        entityManager.clear();
+
+        // When
+        Post found = postRepository.findBySlug("with-tags").orElseThrow();
+
+        // Then
+        assertThat(found.getPostTags())
+                .extracting(postTag -> postTag.getTag().getName())
+                .containsExactlyInAnyOrder("spring", "jpa");
+    }
+
+    @Test
+    @DisplayName("글 삭제 시 태그 연결도 삭제, 태그는 유지")
+    void deletePost_shouldRemoveLinksButKeepTags() {
+        // Given
+        Tag spring = tag("spring");
+        Post post = save(post("with-tags", DAY_1), spring);
+        entityManager.clear();
+
+        // When
+        postRepository.delete(postRepository.findById(post.getId()).orElseThrow());
+        postRepository.flush();
+        entityManager.clear();
+
+        // Then
+        assertThat(tagRepository.findById(spring.getId())).isPresent();
     }
 }

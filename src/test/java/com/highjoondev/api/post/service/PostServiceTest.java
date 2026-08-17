@@ -3,6 +3,7 @@ package com.highjoondev.api.post.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.highjoondev.api.category.entity.Category;
@@ -685,7 +686,7 @@ public class PostServiceTest {
                 .thenReturn(page);
 
         // When
-        Page<PostResponse> response = postService.findAll(pageable);
+        Page<PostResponse> response = postService.findAll(null, null, pageable);
 
         // Then
         assertThat(response.getContent()).extracting(PostResponse::slug).containsExactly("first-slug", "second-slug");
@@ -704,11 +705,83 @@ public class PostServiceTest {
                 .thenReturn(Page.empty(pageable));
 
         // When
-        Page<PostResponse> response = postService.findAll(pageable);
+        Page<PostResponse> response = postService.findAll(null, null, pageable);
 
         // Then
         assertThat(response.getContent()).isEmpty();
         assertThat(response.getTotalElements()).isZero();
+    }
+
+    @Test
+    @DisplayName("tag만 주면 태그별 조회를 씀")
+    void findAll_withTagOnly_shouldUseTagQuery() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        when(postRepository.findByIsHiddenFalseAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc("react", pageable))
+                .thenReturn(new PageImpl<>(List.of(adjacentPost("tagged", "태그 글")), pageable, 1));
+
+        // When
+        Page<PostResponse> response = postService.findAll(null, "react", pageable);
+
+        // Then
+        assertThat(response.getContent()).extracting(PostResponse::slug).containsExactly("tagged");
+        verify(postRepository, never()).findByIsHiddenFalseOrderByPublishedAtDescIdDesc(any());
+    }
+
+    @Test
+    @DisplayName("category와 tag를 함께 주면 조합 조회를 씀")
+    void findAll_withCategoryAndTag_shouldUseCombinedQuery() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        Category category = categoryWithId("backend", null);
+        when(categoryRepository.findBySlug("backend")).thenReturn(Optional.of(category));
+        when(postRepository.findByIsHiddenFalseAndCategoryIdInAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
+                        List.of(category.getId()), "react", pageable))
+                .thenReturn(new PageImpl<>(List.of(adjacentPost("both", "둘 다")), pageable, 1));
+
+        // When
+        Page<PostResponse> response = postService.findAll("backend", "react", pageable);
+
+        // Then
+        assertThat(response.getContent()).extracting(PostResponse::slug).containsExactly("both");
+        verify(postRepository, never()).findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(any(), any());
+        verify(postRepository, never())
+                .findByIsHiddenFalseAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(any(), any());
+    }
+
+    @Test
+    @DisplayName("조합 조회도 자식 카테고리 id를 함께 넘김")
+    void findAll_withCategoryAndTag_shouldIncludeChildCategoryIds() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        Category parent = categoryWithId("parent", null);
+        Category child = categoryWithId("child", parent);
+        when(categoryRepository.findBySlug("parent")).thenReturn(Optional.of(parent));
+        when(postRepository.findByIsHiddenFalseAndCategoryIdInAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
+                        any(), any(), any()))
+                .thenReturn(Page.empty(pageable));
+
+        // When
+        postService.findAll("parent", "react", pageable);
+
+        // Then
+        ArgumentCaptor<List<UUID>> captor = ArgumentCaptor.forClass(List.class);
+        verify(postRepository)
+                .findByIsHiddenFalseAndCategoryIdInAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
+                        captor.capture(), eq("react"), eq(pageable));
+        assertThat(captor.getValue()).containsExactly(parent.getId(), child.getId());
+    }
+
+    @Test
+    @DisplayName("없는 카테고리 slug면 태그를 함께 줘도 예외")
+    void findAll_withUnknownCategoryAndTag_shouldThrowException() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        when(categoryRepository.findBySlug("unknown")).thenReturn(Optional.empty());
+
+        // When, Then
+        assertThatThrownBy(() -> postService.findAll("unknown", "react", pageable))
+                .isInstanceOf(CategoryNotFoundException.class);
     }
 
     /** 카테고리. id를 심어야 리포지토리에 넘어간 id 목록을 확인할 수 있음 */
@@ -737,7 +810,7 @@ public class PostServiceTest {
                         5));
 
         // When
-        Page<PostResponse> response = postService.findByCategorySlug("frontend", pageable);
+        Page<PostResponse> response = postService.findAll("frontend", null, pageable);
 
         // Then
         ArgumentCaptor<List<UUID>> captor = ArgumentCaptor.captor();
@@ -761,7 +834,7 @@ public class PostServiceTest {
                 .thenReturn(new PageImpl<>(List.of(adjacentPost("only-slug", "유일 제목")), pageable, 1));
 
         // When
-        postService.findByCategorySlug("backend", pageable);
+        postService.findAll("backend", null, pageable);
 
         // Then
         ArgumentCaptor<List<UUID>> captor = ArgumentCaptor.captor();
@@ -778,7 +851,7 @@ public class PostServiceTest {
         when(categoryRepository.findBySlug("unknown")).thenReturn(Optional.empty());
 
         // When, Then
-        assertThatThrownBy(() -> postService.findByCategorySlug("unknown", pageable))
+        assertThatThrownBy(() -> postService.findAll("unknown", null, pageable))
                 .isInstanceOf(CategoryNotFoundException.class);
         verify(postRepository, never())
                 .findByIsHiddenFalseAndCategoryIdInOrderByPublishedAtDescIdDesc(anyList(), any(Pageable.class));
@@ -795,7 +868,7 @@ public class PostServiceTest {
                 .thenReturn(Page.empty(pageable));
 
         // When
-        Page<PostResponse> response = postService.findByCategorySlug("empty", pageable);
+        Page<PostResponse> response = postService.findAll("empty", null, pageable);
 
         // Then
         assertThat(response.getContent()).isEmpty();

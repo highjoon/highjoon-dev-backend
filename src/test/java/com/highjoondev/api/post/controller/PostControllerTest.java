@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -104,7 +105,8 @@ public class PostControllerTest {
     @DisplayName("목록 조회 시 200과 페이지 구조 응답")
     void findAll_shouldReturn200WithPagedContent() throws Exception {
         var posts = List.of(postResponse("first", "첫 글"), postResponse("second", "둘째 글"));
-        when(postService.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(posts, PageRequest.of(0, 20), 2));
+        when(postService.findAll(isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(posts, PageRequest.of(0, 20), 2));
 
         mockMvc.perform(get("/api/v1/posts"))
                 .andExpect(status().isOk())
@@ -118,40 +120,40 @@ public class PostControllerTest {
     }
 
     @Test
-    @DisplayName("category 파라미터가 있으면 카테고리 조회로 위임")
-    void findAll_withCategory_shouldDelegateToCategoryQuery() throws Exception {
-        when(postService.findByCategorySlug(eq("react"), any(Pageable.class)))
+    @DisplayName("category 파라미터를 서비스에 그대로 넘김")
+    void findAll_withCategory_shouldPassCategoryToService() throws Exception {
+        when(postService.findAll(eq("react"), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(postResponse("first", "첫 글")), PageRequest.of(0, 20), 1));
 
         mockMvc.perform(get("/api/v1/posts").param("category", "react"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1));
 
-        verify(postService).findByCategorySlug(eq("react"), any(Pageable.class));
-        verify(postService, never()).findAll(any(Pageable.class));
+        verify(postService).findAll(eq("react"), isNull(), any(Pageable.class));
     }
 
     @Test
-    @DisplayName("category 파라미터가 없으면 전체 조회로 위임")
-    void findAll_withoutCategory_shouldDelegateToFindAll() throws Exception {
-        when(postService.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+    @DisplayName("파라미터가 없으면 서비스에 category, tag 모두 null로 넘김")
+    void findAll_withoutParams_shouldPassNulls() throws Exception {
+        when(postService.findAll(isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         mockMvc.perform(get("/api/v1/posts")).andExpect(status().isOk());
 
-        verify(postService).findAll(any(Pageable.class));
-        verify(postService, never()).findByCategorySlug(any(), any(Pageable.class));
+        verify(postService).findAll(isNull(), isNull(), any(Pageable.class));
     }
 
     @Test
     @DisplayName("page와 size 파라미터가 Pageable에 전달")
     void findAll_withPageAndSize_shouldPassPageableToService() throws Exception {
-        when(postService.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 5), 0));
+        when(postService.findAll(isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 5), 0));
 
         mockMvc.perform(get("/api/v1/posts").param("page", "1").param("size", "5"))
                 .andExpect(status().isOk());
 
         var captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(postService).findAll(captor.capture());
+        verify(postService).findAll(isNull(), isNull(), captor.capture());
         assertThat(captor.getValue().getPageNumber()).isEqualTo(1);
         assertThat(captor.getValue().getPageSize()).isEqualTo(5);
     }
@@ -159,20 +161,58 @@ public class PostControllerTest {
     @Test
     @DisplayName("페이지 파라미터가 없으면 기본 페이지 크기 20")
     void findAll_withoutPageParams_shouldUseDefaultSize() throws Exception {
-        when(postService.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+        when(postService.findAll(isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         mockMvc.perform(get("/api/v1/posts")).andExpect(status().isOk());
 
         var captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(postService).findAll(captor.capture());
+        verify(postService).findAll(isNull(), isNull(), captor.capture());
         assertThat(captor.getValue().getPageNumber()).isEqualTo(0);
         assertThat(captor.getValue().getPageSize()).isEqualTo(20);
     }
 
     @Test
+    @DisplayName("tag 파라미터를 서비스에 그대로 넘김")
+    void findAll_withTag_shouldPassTagToService() throws Exception {
+        when(postService.findAll(isNull(), eq("react"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(postResponse("first", "첫 글")), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/api/v1/posts").param("tag", "react"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1));
+
+        verify(postService).findAll(isNull(), eq("react"), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("category와 tag를 함께 넘기면 둘 다 서비스로 전달")
+    void findAll_withCategoryAndTag_shouldPassBothToService() throws Exception {
+        when(postService.findAll(eq("backend"), eq("react"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(postResponse("first", "첫 글")), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/api/v1/posts").param("category", "backend").param("tag", "react"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1));
+
+        verify(postService).findAll(eq("backend"), eq("react"), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("태그에 걸리는 글이 없으면 200과 빈 목록")
+    void findAll_withTagHavingNoPosts_shouldReturn200WithEmptyList() throws Exception {
+        when(postService.findAll(isNull(), eq("없는태그"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        mockMvc.perform(get("/api/v1/posts").param("tag", "없는태그"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    @Test
     @DisplayName("없는 카테고리 조회 시 404")
     void findAll_withUnknownCategory_shouldReturn404() throws Exception {
-        when(postService.findByCategorySlug(eq("unknown"), any(Pageable.class)))
+        when(postService.findAll(eq("unknown"), isNull(), any(Pageable.class)))
                 .thenThrow(new CategoryNotFoundException("unknown"));
 
         mockMvc.perform(get("/api/v1/posts").param("category", "unknown"))
