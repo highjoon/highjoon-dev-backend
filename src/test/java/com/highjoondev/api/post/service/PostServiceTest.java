@@ -22,6 +22,9 @@ import com.highjoondev.api.post.exception.FeaturedPostCannotBeHiddenException;
 import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
+import com.highjoondev.api.tag.entity.Tag;
+import com.highjoondev.api.tag.exception.TagReferenceNotFoundException;
+import com.highjoondev.api.tag.repository.TagRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +54,9 @@ public class PostServiceTest {
 
     @Mock
     private CategoryRepository categoryRepository;
+
+    @Mock
+    private TagRepository tagRepository;
 
     @InjectMocks
     private PostService postService;
@@ -90,6 +96,43 @@ public class PostServiceTest {
                 null,
                 isFeatured,
                 isHidden);
+    }
+
+    /** 태그를 지정한 생성 요청 */
+    private PostCreateRequest requestWithTags(List<UUID> tagIds) {
+        return new PostCreateRequest(
+                "제목",
+                "slug",
+                "설명",
+                "https://example.com/content.md",
+                "https://example.com/banner.png",
+                PUBLISHED_AT,
+                null,
+                tagIds,
+                false,
+                false);
+    }
+
+    /** 태그를 지정한 수정 요청 */
+    private PostUpdateRequest updateRequestWithTags(List<UUID> tagIds) {
+        return new PostUpdateRequest(
+                "새 제목",
+                "new-slug",
+                "새 설명",
+                "https://example.com/new-content.md",
+                "https://example.com/new-banner.png",
+                NEW_PUBLISHED_AT,
+                null,
+                tagIds,
+                false,
+                false);
+    }
+
+    /** 태그. id를 심어야 서비스가 조회해온 것과 요청 id를 맞춰볼 수 있음 */
+    private Tag tagWithId(UUID id, String name) {
+        Tag tag = Tag.builder().name(name).build();
+        ReflectionTestUtils.setField(tag, "id", id);
+        return tag;
     }
 
     /** 수정 대상 기존 글. 값이 요청과 전부 달라야 수정 여부를 확인할 수 있음 */
@@ -271,6 +314,73 @@ public class PostServiceTest {
         // When, Then
         assertThatThrownBy(() -> postService.create(request)).isInstanceOf(DuplicatedPostSlugException.class);
         verify(postRepository, never()).findFirstByIsFeaturedTrue();
+    }
+
+    @Test
+    @DisplayName("태그 지정 시 생성 글에 태그 연결")
+    void create_withTagIds_shouldLinkTags() {
+        // Given
+        UUID springId = UUID.randomUUID();
+        UUID jpaId = UUID.randomUUID();
+        var request = requestWithTags(List.of(springId, jpaId));
+        when(tagRepository.findAllById(anySet()))
+                .thenReturn(List.of(tagWithId(springId, "spring"), tagWithId(jpaId, "jpa")));
+
+        // When
+        postService.create(request);
+
+        // Then
+        ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+        verify(postRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getPostTags())
+                .extracting(postTag -> postTag.getTag().getName())
+                .containsExactlyInAnyOrder("spring", "jpa");
+    }
+
+    @Test
+    @DisplayName("없는 태그 지정 시 생성 예외")
+    void create_withUnknownTagId_shouldThrowException() {
+        // Given: 하나만 찾히고 하나는 없음
+        UUID springId = UUID.randomUUID();
+        UUID unknownId = UUID.randomUUID();
+        var request = requestWithTags(List.of(springId, unknownId));
+        when(tagRepository.findAllById(anySet())).thenReturn(List.of(tagWithId(springId, "spring")));
+
+        // When, Then
+        assertThatThrownBy(() -> postService.create(request))
+                .isInstanceOf(TagReferenceNotFoundException.class)
+                .hasMessageContaining(unknownId.toString());
+        verify(postRepository, never()).saveAndFlush(any(Post.class));
+    }
+
+    @Test
+    @DisplayName("같은 태그를 여러 번 지정해도 한 번만 연결")
+    void create_withDuplicateTagIds_shouldLinkOnce() {
+        // Given: 중복을 안 걸러내면 요청 건수와 조회 건수가 어긋나 없는 태그로 오인함
+        UUID springId = UUID.randomUUID();
+        var request = requestWithTags(List.of(springId, springId));
+        when(tagRepository.findAllById(anySet())).thenReturn(List.of(tagWithId(springId, "spring")));
+
+        // When
+        postService.create(request);
+
+        // Then
+        ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+        verify(postRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getPostTags()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("태그 미지정 시 태그 조회 건너뜀")
+    void create_withNullTagIds_shouldSkipTagLookup() {
+        // Given
+        var request = request(null, false, false);
+
+        // When
+        postService.create(request);
+
+        // Then
+        verify(tagRepository, never()).findAllById(any());
     }
 
     @Test
@@ -491,6 +601,62 @@ public class PostServiceTest {
         // When, Then
         assertThatThrownBy(() -> postService.updateById(id, request))
                 .isInstanceOf(CategoryReferenceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("태그 지정 시 기존 태그를 새 태그로 교체")
+    void updateById_withTagIds_shouldReplaceTags() {
+        // Given
+        UUID id = UUID.randomUUID();
+        UUID dockerId = UUID.randomUUID();
+        Post post = existingPost(id);
+        post.updateTags(List.of(tagWithId(UUID.randomUUID(), "spring")));
+        var request = updateRequestWithTags(List.of(dockerId));
+        when(postRepository.findById(id)).thenReturn(Optional.of(post));
+        when(tagRepository.findAllById(anySet())).thenReturn(List.of(tagWithId(dockerId, "docker")));
+
+        // When
+        postService.updateById(id, request);
+
+        // Then
+        assertThat(post.getPostTags())
+                .extracting(postTag -> postTag.getTag().getName())
+                .containsExactly("docker");
+    }
+
+    @Test
+    @DisplayName("태그 미지정으로 수정 시 기존 태그 전부 해제")
+    void updateById_withNullTagIds_shouldClearTags() {
+        // Given: 카테고리와 같이 값을 안 주면 해제로 봄
+        UUID id = UUID.randomUUID();
+        Post post = existingPost(id);
+        post.updateTags(List.of(tagWithId(UUID.randomUUID(), "spring")));
+        var request = updateRequestWithTags(null);
+        when(postRepository.findById(id)).thenReturn(Optional.of(post));
+
+        // When
+        postService.updateById(id, request);
+
+        // Then
+        assertThat(post.getPostTags()).isEmpty();
+        verify(tagRepository, never()).findAllById(any());
+    }
+
+    @Test
+    @DisplayName("없는 태그 지정 시 수정 예외")
+    void updateById_withUnknownTagId_shouldThrowException() {
+        // Given
+        UUID id = UUID.randomUUID();
+        UUID unknownId = UUID.randomUUID();
+        var request = updateRequestWithTags(List.of(unknownId));
+        when(postRepository.findById(id)).thenReturn(Optional.of(existingPost(id)));
+        when(tagRepository.findAllById(anySet())).thenReturn(List.of());
+
+        // When, Then
+        assertThatThrownBy(() -> postService.updateById(id, request))
+                .isInstanceOf(TagReferenceNotFoundException.class)
+                .hasMessageContaining(unknownId.toString());
+        verify(postRepository, never()).flush();
     }
 
     @Test

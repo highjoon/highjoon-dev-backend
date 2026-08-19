@@ -18,6 +18,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -128,8 +129,15 @@ public class Post {
     }
 
     public void updateTags(List<Tag> tags) {
-        this.postTags.clear();
-        tags.forEach(
-                tag -> this.postTags.add(PostTag.builder().post(this).tag(tag).build()));
+        Set<UUID> requestedTagIds = tags.stream().map(Tag::getId).collect(Collectors.toSet());
+        Set<UUID> linkedTagIds =
+                this.postTags.stream().map(postTag -> postTag.getTag().getId()).collect(Collectors.toSet());
+
+        this.postTags.removeIf(
+                postTag -> !requestedTagIds.contains(postTag.getTag().getId()));
+        tags.stream()
+                .filter(tag -> !linkedTagIds.contains(tag.getId()))
+                .forEach(tag ->
+                        this.postTags.add(PostTag.builder().post(this).tag(tag).build()));
     }
 }
