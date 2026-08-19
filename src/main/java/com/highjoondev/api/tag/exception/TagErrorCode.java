@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 
 public enum TagErrorCode implements ErrorCode {
     NOT_FOUND("TAG_NOT_FOUND", "태그를 찾을 수 없습니다: %s", HttpStatus.NOT_FOUND),
+    REFERENCE_NOT_FOUND("TAG_REFERENCE_NOT_FOUND", "지정한 태그를 찾을 수 없습니다: %s", HttpStatus.BAD_REQUEST),
     DUPLICATED_NAME("TAG_DUPLICATED_NAME", "이미 사용 중인 태그 이름입니다: %s", HttpStatus.CONFLICT);
 
     private final String code;

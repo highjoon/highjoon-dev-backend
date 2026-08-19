@@ -16,7 +16,12 @@ import com.highjoondev.api.post.exception.FeaturedPostCannotBeHiddenException;
 import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.repository.PostRepository;
+import com.highjoondev.api.tag.entity.Tag;
+import com.highjoondev.api.tag.exception.TagReferenceNotFoundException;
+import com.highjoondev.api.tag.repository.TagRepository;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PostService {
     private final PostRepository postRepository;
     private final CategoryRepository categoryRepository;
+    private final TagRepository tagRepository;
 
     @Transactional
     public PostResponse create(PostCreateRequest request) {
@@ -49,8 +55,11 @@ public class PostService {
         }
 
         Category category = resolveCategory(request.categoryId());
+        List<Tag> tags = resolveTags(request.tagIds());
+        Post post = request.toEntity(category);
+        post.updateTags(tags);
         // 응답에 담을 생성, 수정 시각은 flush 후에 채워짐
-        Post post = postRepository.saveAndFlush(request.toEntity(category));
+        postRepository.saveAndFlush(post);
 
         return PostResponse.from(post);
     }
@@ -77,6 +86,7 @@ public class PostService {
         }
 
         Category category = resolveCategory(request.categoryId());
+        List<Tag> tags = resolveTags(request.tagIds());
         post.update(
                 request.slug(),
                 request.title(),
@@ -85,6 +95,7 @@ public class PostService {
                 request.bannerImageUrl(),
                 request.publishedAt(),
                 category);
+        post.updateTags(tags);
         post.updateIsFeatured(request.isFeatured());
         post.updateIsHidden(request.isHidden());
         // 응답에 담을 수정 시각은 flush 후에 갱신됨
@@ -173,5 +184,24 @@ public class PostService {
         return categoryRepository
                 .findById(categoryId)
                 .orElseThrow(() -> new CategoryReferenceNotFoundException(categoryId));
+    }
+
+    private List<Tag> resolveTags(List<UUID> tagIds) {
+        if (tagIds == null) {
+            return List.of();
+        }
+
+        Set<UUID> deduplicatedTagIds = new HashSet<>(tagIds);
+        List<Tag> foundTags = tagRepository.findAllById(deduplicatedTagIds);
+        List<UUID> foundTagIds = foundTags.stream().map(Tag::getId).toList();
+
+        if (foundTags.size() != deduplicatedTagIds.size()) {
+            List<UUID> notFoundTagIds = deduplicatedTagIds.stream()
+                    .filter(id -> !foundTagIds.contains(id))
+                    .toList();
+            throw new TagReferenceNotFoundException(notFoundTagIds);
+        }
+
+        return foundTags;
     }
 }

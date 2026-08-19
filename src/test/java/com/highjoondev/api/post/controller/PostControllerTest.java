@@ -84,6 +84,7 @@ public class PostControllerTest {
                 "https://example.com/banner.png",
                 PUBLISHED_AT,
                 null,
+                null,
                 false,
                 false);
     }
@@ -96,6 +97,7 @@ public class PostControllerTest {
                 "https://example.com/content.md",
                 "https://example.com/banner.png",
                 PUBLISHED_AT,
+                null,
                 null,
                 false,
                 false);
@@ -374,6 +376,7 @@ public class PostControllerTest {
                 "https://example.com/banner.png",
                 PUBLISHED_AT,
                 categoryId,
+                null,
                 false,
                 false);
         when(postService.create(request)).thenThrow(new CategoryReferenceNotFoundException(categoryId));
@@ -461,6 +464,7 @@ public class PostControllerTest {
                 "https://example.com/banner.png",
                 PUBLISHED_AT,
                 categoryId,
+                null,
                 false,
                 false);
         when(postService.updateById(id, request)).thenThrow(new CategoryReferenceNotFoundException(categoryId));
@@ -500,6 +504,7 @@ public class PostControllerTest {
                 "https://example.com/banner.png",
                 PUBLISHED_AT,
                 null,
+                null,
                 true,
                 false);
         when(postService.updateById(id, request)).thenThrow(new DuplicatedFeaturedPostException(UUID.randomUUID()));
@@ -523,6 +528,7 @@ public class PostControllerTest {
                 "https://example.com/content.md",
                 "https://example.com/banner.png",
                 PUBLISHED_AT,
+                null,
                 null,
                 true,
                 true);
