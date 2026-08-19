@@ -72,6 +72,7 @@ public class PostServiceTest {
                 "https://example.com/banner.png",
                 PUBLISHED_AT,
                 categoryId,
+                null,
                 isFeatured,
                 isHidden);
     }
@@ -86,6 +87,7 @@ public class PostServiceTest {
                 "https://example.com/new-banner.png",
                 NEW_PUBLISHED_AT,
                 categoryId,
+                null,
                 isFeatured,
                 isHidden);
     }

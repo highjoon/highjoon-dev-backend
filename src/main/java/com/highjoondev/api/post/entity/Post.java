@@ -128,7 +128,8 @@ public class Post {
     }
 
     public void updateTags(List<Tag> tags) {
-        postTags.clear();
-        tags.forEach(tag -> postTags.add(PostTag.builder().post(this).tag(tag).build()));
+        this.postTags.clear();
+        tags.forEach(
+                tag -> this.postTags.add(PostTag.builder().post(this).tag(tag).build()));
     }
 }

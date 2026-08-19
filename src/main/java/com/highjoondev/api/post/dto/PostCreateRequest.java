@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record PostCreateRequest(
@@ -25,6 +26,8 @@ public record PostCreateRequest(
         @Schema(description = "발행일") @NotNull(message = "발행일은 필수입니다") Instant publishedAt,
 
         @Schema(description = "카테고리 ID (없으면 미분류)") UUID categoryId,
+
+        @Schema(description = "태그 ID 목록 (없으면 태그 미입력)") List<UUID> tagIds,
 
         @Schema(description = "추천 글 여부", defaultValue = "false")
         boolean isFeatured,
