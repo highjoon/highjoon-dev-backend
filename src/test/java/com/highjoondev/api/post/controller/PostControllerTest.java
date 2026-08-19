@@ -30,6 +30,7 @@ import com.highjoondev.api.post.exception.FeaturedPostCannotBeHiddenException;
 import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.service.PostService;
+import com.highjoondev.api.tag.exception.TagReferenceNotFoundException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -387,6 +388,31 @@ public class PostControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("CATEGORY_REFERENCE_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("없는 태그로 생성 시 400")
+    void create_withUnknownTag_shouldReturn400() throws Exception {
+        var tagId = UUID.randomUUID();
+        var request = new PostCreateRequest(
+                "첫 글",
+                "first",
+                "요약",
+                "https://example.com/content.md",
+                "https://example.com/banner.png",
+                PUBLISHED_AT,
+                null,
+                List.of(tagId),
+                false,
+                false);
+        when(postService.create(request)).thenThrow(new TagReferenceNotFoundException(List.of(tagId)));
+
+        mockMvc.perform(post("/api/v1/posts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("TAG_REFERENCE_NOT_FOUND"));
     }
 
     @Test

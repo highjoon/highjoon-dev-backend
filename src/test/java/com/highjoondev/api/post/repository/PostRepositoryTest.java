@@ -475,6 +475,62 @@ public class PostRepositoryTest {
     }
 
     @Test
+    @DisplayName("태그 교체 시 뺀 것은 지우고 넣은 것은 추가")
+    void updateTags_shouldReplaceLinks() {
+        // Given
+        Tag spring = tag("spring");
+        Tag jpa = tag("jpa");
+        Post post = save(post("with-tags", DAY_1), spring, jpa);
+
+        // When: 둘 다 빼고 새 태그만 남김
+        Tag docker = tag("docker");
+        post.updateTags(List.of(docker));
+        postRepository.flush();
+        entityManager.clear();
+
+        // Then
+        assertThat(postRepository.findById(post.getId()).orElseThrow().getPostTags())
+                .extracting(postTag -> postTag.getTag().getName())
+                .containsExactly("docker");
+    }
+
+    @Test
+    @DisplayName("겹치는 태그로 교체 시 유니크 제약 위반 없음")
+    void updateTags_withOverlappingTag_shouldNotViolateUniqueConstraint() {
+        // Given: 같은 flush 안에서 spring 연결이 지워졌다 다시 추가됨
+        Tag spring = tag("spring");
+        Tag jpa = tag("jpa");
+        Post post = save(post("with-tags", DAY_1), spring, jpa);
+
+        // When: spring은 유지, jpa는 빼고 docker를 넣음
+        Tag docker = tag("docker");
+        post.updateTags(List.of(spring, docker));
+        postRepository.flush();
+        entityManager.clear();
+
+        // Then
+        assertThat(postRepository.findById(post.getId()).orElseThrow().getPostTags())
+                .extracting(postTag -> postTag.getTag().getName())
+                .containsExactlyInAnyOrder("spring", "docker");
+    }
+
+    @Test
+    @DisplayName("빈 목록으로 교체 시 태그 연결 전부 해제")
+    void updateTags_withEmptyList_shouldRemoveAllLinks() {
+        // Given
+        Post post = save(post("with-tags", DAY_1), tag("spring"), tag("jpa"));
+
+        // When
+        post.updateTags(List.of());
+        postRepository.flush();
+        entityManager.clear();
+
+        // Then
+        assertThat(postRepository.findById(post.getId()).orElseThrow().getPostTags())
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("글 삭제 시 태그 연결도 삭제, 태그는 유지")
     void deletePost_shouldRemoveLinksButKeepTags() {
         // Given
