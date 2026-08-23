@@ -62,94 +62,172 @@ jobs:
           fi
           chmod 600 ~/.ssh/known_hosts
 
+      # nginx 설정은 올리지 않음. certbot이 관리하는 영역이라 배포가 건드리면 안 됨
       - name: Sync deploy files
         env:
           VM_USER: ${{ secrets.VM_USER }}
           VM_HOST: ${{ secrets.VM_HOST }}
         run: |
           ssh "$VM_USER@$VM_HOST" bash -s <<'EOF'
+            set -e
             cd /opt/highjoon-dev
             cp compose.yml compose.yml.prev 2>/dev/null || true
             rm -rf fluent-bit.prev
             cp -r fluent-bit fluent-bit.prev 2>/dev/null || true
             mkdir -p fluent-bit
           EOF
-          scp compose.yml "$VM_USER@$VM_HOST:/opt/highjoon-dev/compose.yml"
+          scp compose.yml      "$VM_USER@$VM_HOST:/opt/highjoon-dev/compose.yml"
+          scp deploy/switch.sh "$VM_USER@$VM_HOST:/opt/highjoon-dev/switch.sh"
           scp deploy/fluent-bit/*.conf "$VM_USER@$VM_HOST:/opt/highjoon-dev/fluent-bit/"
+          ssh "$VM_USER@$VM_HOST" 'chmod +x /opt/highjoon-dev/switch.sh'
 
-      - name: Deploy
-        id: deploy
-        timeout-minutes: 10
+      # 대기 색을 띄우고 그 색에서만 검증. 여기까지는 nginx를 건드리지 않음
+      # 즉 이 단계에서 실패해도 사용자 영향 없음
+      - name: Start standby
+        id: standby
+        timeout-minutes: 12
         env:
           VM_USER: ${{ secrets.VM_USER }}
           VM_HOST: ${{ secrets.VM_HOST }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          ssh "$VM_USER@$VM_HOST" \
-            env IMAGE_TAG="$IMAGE_TAG" IMAGE_NAME="$IMAGE_NAME" bash -s <<'EOF'
-            set -e
+          # 파이프 종료 코드가 tee 것으로 덮이지 않게 함. 없으면 원격 실패를 놓침
+          set -o pipefail
+          ssh "$VM_USER@$VM_HOST" env IMAGE_TAG="$IMAGE_TAG" bash -s <<'EOF' | tee standby.log
+            set -euo pipefail
             cd /opt/highjoon-dev
-            if [ -f .env.deploy ]; then
-              cp .env.deploy .env.deploy.prev
+
+            # 활성 색은 nginx upstream 파일이 유일한 정답. 별도 상태 파일 없음
+            ACTIVE_PORT=$(sed -n 's|.*127\.0\.0\.1:\([0-9]\{4\}\).*|\1|p' \
+                          /etc/nginx/conf.d/backend-upstream.conf)
+            case "$ACTIVE_PORT" in
+              8081) ACTIVE=blue;  TARGET=green; TARGET_PORT=8082 ;;
+              8082) ACTIVE=green; TARGET=blue;  TARGET_PORT=8081 ;;
+              *) echo "활성 포트를 읽지 못함: '${ACTIVE_PORT}'" >&2; exit 1 ;;
+            esac
+            echo "활성=${ACTIVE}(${ACTIVE_PORT}) 대상=${TARGET}(${TARGET_PORT})"
+
+            # 대상 색 태그만 갱신. 반대 색 태그는 롤백용으로 보존
+            cp .env.deploy .env.deploy.prev
+            BLUE_TAG=$(sed -n 's/^BLUE_TAG=//p' .env.deploy)
+            GREEN_TAG=$(sed -n 's/^GREEN_TAG=//p' .env.deploy)
+            if [ "$TARGET" = blue ]; then BLUE_TAG="$IMAGE_TAG"; else GREEN_TAG="$IMAGE_TAG"; fi
+            printf 'BLUE_TAG=%s\nGREEN_TAG=%s\n' "$BLUE_TAG" "$GREEN_TAG" > .env.deploy
+
+            docker compose --env-file .env.deploy --profile "$TARGET" pull "app-${TARGET}"
+            docker compose --env-file .env.deploy up -d fluent-bit
+            docker compose --env-file .env.deploy --profile "$TARGET" \
+              up -d --wait --wait-timeout 420 "app-${TARGET}"
+
+            # DB까지 살아있는지 실제 조회로 확인. health 하나로는 못 잡음
+            for _ in $(seq 1 12); do
+              if curl -fsS --max-time 10 "http://127.0.0.1:${TARGET_PORT}/api/v1/categories" >/dev/null; then
+                echo "READY ${ACTIVE} ${TARGET} ${TARGET_PORT}"
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "대상 색 검증 실패" >&2
+            exit 1
+          EOF
+
+          read -r _ active target port < <(grep '^READY ' standby.log)
+          echo "active=$active" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+          echo "port=$port"     >> "$GITHUB_OUTPUT"
+
+      # 여기서부터 사용자 트래픽이 대상 색으로 넘어감
+      - name: Switch traffic
+        id: switch
+        env:
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_HOST: ${{ secrets.VM_HOST }}
+          TARGET_PORT: ${{ steps.standby.outputs.port }}
+        run: |
+          ssh "$VM_USER@$VM_HOST" "/opt/highjoon-dev/switch.sh $TARGET_PORT"
+
+      - name: Verify public
+        run: |
+          for _ in $(seq 1 18); do
+            if curl -fsS --max-time 10 https://api.highjoon-dev.com/api/v1/categories >/dev/null; then
+              exit 0
             fi
+            sleep 5
+          done
+          exit 1
 
-            echo "IMAGE_TAG=$IMAGE_TAG" > .env.deploy
-            docker compose --env-file .env.deploy pull
-            docker compose --env-file .env.deploy up -d --wait --wait-timeout 300
+      # 공개 확인까지 통과한 뒤에야 옛 색을 내림
+      # 두 색을 계속 띄워두면 메모리가 모자라므로 배포 창 안에서만 유지
+      - name: Stop old color
+        env:
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_HOST: ${{ secrets.VM_HOST }}
+          OLD: ${{ steps.standby.outputs.active }}
+        run: |
+          ssh "$VM_USER@$VM_HOST" env OLD="$OLD" IMAGE_NAME="$IMAGE_NAME" bash -s <<'EOF'
+            set -euo pipefail
+            cd /opt/highjoon-dev
 
-            KEEP_PREV=$(sed -n 's/^IMAGE_TAG=//p' .env.deploy.prev 2>/dev/null || true)
+            # 처리 중인 요청을 끝낼 시간을 줌. 스프링 graceful shutdown 30s
+            docker compose --env-file .env.deploy --profile "$OLD" stop -t 40 "app-${OLD}"
+            docker compose --env-file .env.deploy --profile "$OLD" rm -f "app-${OLD}"
+
+            # 두 색이 참조하는 태그는 지우지 않음. 롤백 대상이라서
+            KEEP_BLUE=$(sed -n 's/^BLUE_TAG=//p' .env.deploy)
+            KEEP_GREEN=$(sed -n 's/^GREEN_TAG=//p' .env.deploy)
             docker images "$IMAGE_NAME" --format '{{.Tag}}' | while read -r tag; do
               case "$tag" in
-                "$IMAGE_TAG"|"$KEEP_PREV"|latest|'<none>') continue ;;
+                "$KEEP_BLUE"|"$KEEP_GREEN"|latest|'<none>') continue ;;
               esac
               docker rmi "$IMAGE_NAME:$tag" >/dev/null 2>&1 || true
             done
             docker image prune -f
           EOF
 
-      - name: Health check
-        id: healthcheck
-        run: |
-          for i in $(seq 1 30); do
-            if curl -fsS --max-time 5 https://api.highjoon-dev.com/actuator/health | grep -q '"UP"'; then
-              exit 0
-            fi
-            sleep 10
-          done
-          exit 1
-
-      - name: Rollback
-        if: failure() && (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure')
+      # 전환 전 실패: nginx 미변경이므로 대기 색만 지우면 끝. 사용자 영향 없음
+      - name: Discard standby
+        if: failure() && steps.switch.outcome == 'skipped'
         env:
           VM_USER: ${{ secrets.VM_USER }}
           VM_HOST: ${{ secrets.VM_HOST }}
+          TARGET: ${{ steps.standby.outputs.target }}
         run: |
-          ssh "$VM_USER@$VM_HOST" bash -s <<'EOF'
-            set -e
+          ssh "$VM_USER@$VM_HOST" env TARGET="$TARGET" bash -s <<'EOF'
             cd /opt/highjoon-dev
-
-            if [ ! -f .env.deploy.prev ]; then
-              exit 1
+            if [ -n "${TARGET:-}" ]; then
+              docker compose --env-file .env.deploy --profile "$TARGET" rm -sf "app-${TARGET}" || true
             fi
-
-            if [ -f compose.yml.prev ]; then
-              cp compose.yml.prev compose.yml
-            fi
-
+            # 실패한 배포가 VM에 흔적을 남기지 않도록 원복
+            [ -f .env.deploy.prev ] && cp .env.deploy.prev .env.deploy
+            [ -f compose.yml.prev ] && cp compose.yml.prev compose.yml
             if [ -d fluent-bit.prev ]; then
-              rm -rf fluent-bit
-              cp -r fluent-bit.prev fluent-bit
+              rm -rf fluent-bit && cp -r fluent-bit.prev fluent-bit
+              docker compose --env-file .env.deploy up -d fluent-bit
             fi
-
-            cp .env.deploy.prev .env.deploy
-            docker compose --env-file .env.deploy pull
-            docker compose --env-file .env.deploy up -d --wait --wait-timeout 300
+            exit 0
           EOF
 
-          for i in $(seq 1 18); do
-            if curl -fsS --max-time 5 https://api.highjoon-dev.com/actuator/health | grep -q '"UP"'; then
-              exit 0
-            fi
-            sleep 10
+      # 전환 후 실패: 옛 색이 아직 살아있으므로 upstream만 되돌리면 즉시 복구
+      - name: Rollback switch
+        if: failure() && steps.switch.outcome == 'success'
+        env:
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_HOST: ${{ secrets.VM_HOST }}
+          OLD: ${{ steps.standby.outputs.active }}
+          TARGET: ${{ steps.standby.outputs.target }}
+        run: |
+          if [ "$OLD" = blue ]; then OLD_PORT=8081; else OLD_PORT=8082; fi
+          ssh "$VM_USER@$VM_HOST" "/opt/highjoon-dev/switch.sh $OLD_PORT"
+
+          ssh "$VM_USER@$VM_HOST" env TARGET="$TARGET" bash -s <<'EOF'
+            cd /opt/highjoon-dev
+            docker compose --env-file .env.deploy --profile "$TARGET" rm -sf "app-${TARGET}" || true
+            [ -f .env.deploy.prev ] && cp .env.deploy.prev .env.deploy
+            exit 0
+          EOF
+
+          for _ in $(seq 1 12); do
+            curl -fsS --max-time 10 https://api.highjoon-dev.com/api/v1/categories >/dev/null && exit 0
+            sleep 5
           done
           exit 1

@@ -1,33 +1,49 @@
+# 두 버전이 공유하는 설정
+x-app: &app-base
+  # stop으로 명시적으로 멈추지 않는 한 죽으면 계속 재시작
+  restart: unless-stopped
+  env_file:
+    - .env
+  # 컨테이너가 쓸 수 있는 최대 메모리. 두 버전이 동시에 떠도 RAM 안에 들어갈 수 있어야함
+  mem_limit: 400m
+  # 종료 신호 후 강제 종료되기까지 대기 시간. 스프링 부트의 graceful shutdown (30s) 보다 길어야함
+  stop_grace_period: 40s
+  # 로그 파일 크기 제한. 10mb 파일 3개까지 보관
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  # 앱의 헬스체크 엔드포인트를 주기적으로 확인
+  healthcheck:
+    test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health" ]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 180s
+    start_interval: 5s
+
 services:
-  # 서비스 이름. 컨테이너명은 자동 생성
-  app:
-    # GHCR 이미지. IMAGE_TAG 는 .env.deploy 가 지정, 없으면 latest 이미지 사용
-    image: ghcr.io/highjoon/highjoon-dev-backend:${IMAGE_TAG:-latest}
-    # stop으로 명시적으로 멈추지 않는 한 죽으면 계속 재시작
-    restart: unless-stopped
-    # 127.0.0.1 바인딩. VM 내부에서만 접근 가능, 외부는 Nginx를 거쳐야 함
+  # blue. 8081 포트 점유
+  app-blue:
+    <<: *app-base
+    # blue 프로필 지정
+    profiles: [ "blue" ]
+    image: ghcr.io/highjoon/highjoon-dev-backend:${BLUE_TAG:-latest}
+    # 127.0.0.1 바인딩. VM 내부에서만 접근 가능, 외부는 Nginx를 거쳐야함
     ports:
-      - "127.0.0.1:8080:8080"
-    env_file:
-      - .env
-    # 컨테이너가 쓸 수 있는 최대 메모리
-    mem_limit: 640m
-    # 로그 파일 크기 제한. 10m 파일 3개까지 보관
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    # 앱의 헬스체크 엔드포인트를 주기적으로 확인
-    healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health" ]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 180s
-      start_interval: 5s
+      - "127.0.0.1:8081:8080"
+
+  # green. 8082 포트 점유
+  app-green:
+    <<: *app-base
+    profiles: [ "green" ]
+    image: ghcr.io/highjoon/highjoon-dev-backend:${GREEN_TAG:-latest}
+    ports:
+      - "127.0.0.1:8082:8080"
 
   # 컨테이너 로그 파일을 읽어서 Cloud Logging으로 전송
+  # 프로필이 없으므로 blue/green과 무관하게 항상 떠있음
   fluent-bit:
     # 이미지 태그 고정
     image: fluent/fluent-bit:3.2
