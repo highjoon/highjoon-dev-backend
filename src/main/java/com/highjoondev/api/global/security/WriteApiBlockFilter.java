@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -32,14 +33,19 @@ public class WriteApiBlockFilter extends OncePerRequestFilter {
     private static final Set<String> BLOCKED_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
     private static final String API_PREFIX = "/api/";
 
+    /** 조회수 반영은 쓰기 메서드지만 누구나 부르는 경로라 예외. 인증이 붙으면 이 필터와 함께 사라짐 */
+    private static final Pattern VIEW_PATH = Pattern.compile("^/api/v1/posts/[^/]+/views$");
+
     private final ObjectMapper objectMapper;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        boolean isApiRequest = request.getRequestURI().startsWith(request.getContextPath() + API_PREFIX);
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        boolean isApiRequest = path.startsWith(API_PREFIX);
         boolean isWriteMethod = BLOCKED_METHODS.contains(request.getMethod());
+        boolean isViewRequest = VIEW_PATH.matcher(path).matches();
 
-        return !isApiRequest || !isWriteMethod;
+        return !isApiRequest || !isWriteMethod || isViewRequest;
     }
 
     @Override

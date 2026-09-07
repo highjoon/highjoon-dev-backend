@@ -9,6 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.highjoondev.api.post.controller.PostController;
+import com.highjoondev.api.post.dto.PostViewResponse;
+import com.highjoondev.api.post.service.PostService;
+import com.highjoondev.api.post.service.PostViewService;
 import com.highjoondev.api.tag.controller.TagController;
 import com.highjoondev.api.tag.dto.TagCreateRequest;
 import com.highjoondev.api.tag.dto.TagResponse;
@@ -25,7 +29,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(TagController.class)
+@WebMvcTest({TagController.class, PostController.class})
 public class WriteApiBlockFilterTest {
     @Autowired
     MockMvc mockMvc;
@@ -35,6 +39,12 @@ public class WriteApiBlockFilterTest {
 
     @MockitoBean
     TagService tagService;
+
+    @MockitoBean
+    PostService postService;
+
+    @MockitoBean
+    PostViewService postViewService;
 
     @Test
     @DisplayName("POST 요청 시 403과 WRITE_NOT_ALLOWED")
@@ -91,5 +101,30 @@ public class WriteApiBlockFilterTest {
                 .andExpect(jsonPath("$.data[0].name").value("react"));
 
         verify(tagService).findAll();
+    }
+
+    @Test
+    @DisplayName("조회수 반영은 POST여도 차단 안 함")
+    void increaseViewCount_shouldReachService() throws Exception {
+        when(postViewService.increaseViewCount("hello")).thenReturn(new PostViewResponse(1));
+
+        mockMvc.perform(post("/api/v1/posts/{slug}/views", "hello"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.viewCount").value(1));
+
+        verify(postViewService).increaseViewCount("hello");
+    }
+
+    @Test
+    @DisplayName("게시물 생성은 그대로 차단")
+    void createPost_shouldReturn403() throws Exception {
+        mockMvc.perform(post("/api/v1/posts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("WRITE_NOT_ALLOWED"));
+
+        verify(postService, never()).create(any());
     }
 }

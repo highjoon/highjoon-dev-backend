@@ -23,6 +23,7 @@ import com.highjoondev.api.post.dto.PostDetailResponse;
 import com.highjoondev.api.post.dto.PostResponse;
 import com.highjoondev.api.post.dto.PostSummary;
 import com.highjoondev.api.post.dto.PostUpdateRequest;
+import com.highjoondev.api.post.dto.PostViewResponse;
 import com.highjoondev.api.post.dto.TagRef;
 import com.highjoondev.api.post.exception.DuplicatedFeaturedPostException;
 import com.highjoondev.api.post.exception.DuplicatedPostSlugException;
@@ -30,6 +31,7 @@ import com.highjoondev.api.post.exception.FeaturedPostCannotBeHiddenException;
 import com.highjoondev.api.post.exception.FeaturedPostNotFoundException;
 import com.highjoondev.api.post.exception.PostNotFoundException;
 import com.highjoondev.api.post.service.PostService;
+import com.highjoondev.api.post.service.PostViewService;
 import com.highjoondev.api.tag.exception.TagReferenceNotFoundException;
 import java.time.Instant;
 import java.util.List;
@@ -57,6 +59,9 @@ public class PostControllerTest {
 
     @MockitoBean
     PostService postService;
+
+    @MockitoBean
+    PostViewService postViewService;
 
     private static final Instant PUBLISHED_AT = Instant.parse("2026-01-01T00:00:00Z");
 
@@ -602,5 +607,41 @@ public class PostControllerTest {
                 .andExpect(jsonPath("$.success").value(false));
 
         verify(postService, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("조회수 반영 시 200과 갱신된 조회수")
+    void increaseViewCount_shouldReturn200WithUpdatedCount() throws Exception {
+        when(postViewService.increaseViewCount("hello")).thenReturn(new PostViewResponse(42));
+
+        mockMvc.perform(post("/api/v1/posts/{slug}/views", "hello"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.viewCount").value(42));
+
+        verify(postViewService).increaseViewCount("hello");
+    }
+
+    @Test
+    @DisplayName("없거나 숨긴 글의 조회수 반영 시 404")
+    void increaseViewCount_whenNotFound_shouldReturn404() throws Exception {
+        when(postViewService.increaseViewCount("absent")).thenThrow(new PostNotFoundException("absent"));
+
+        mockMvc.perform(post("/api/v1/posts/{slug}/views", "absent"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("POST_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("경로의 slug를 서비스에 그대로 넘김")
+    void increaseViewCount_shouldPassSlugToService() throws Exception {
+        when(postViewService.increaseViewCount(any())).thenReturn(new PostViewResponse(1));
+
+        mockMvc.perform(post("/api/v1/posts/{slug}/views", "한글-슬러그")).andExpect(status().isOk());
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(postViewService).increaseViewCount(captor.capture());
+        assertThat(captor.getValue()).isEqualTo("한글-슬러그");
     }
 }

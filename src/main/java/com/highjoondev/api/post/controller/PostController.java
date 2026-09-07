@@ -5,7 +5,9 @@ import com.highjoondev.api.post.dto.PostCreateRequest;
 import com.highjoondev.api.post.dto.PostDetailResponse;
 import com.highjoondev.api.post.dto.PostResponse;
 import com.highjoondev.api.post.dto.PostUpdateRequest;
+import com.highjoondev.api.post.dto.PostViewResponse;
 import com.highjoondev.api.post.service.PostService;
+import com.highjoondev.api.post.service.PostViewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -41,6 +43,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class PostController {
 
     private final PostService postService;
+    private final PostViewService postViewService;
 
     @Operation(summary = "게시물 생성", description = "새로운 게시물을 생성합니다. categoryId를 넘기지 않으면 미분류로 저장됩니다.")
     @ApiResponses({
@@ -153,5 +156,22 @@ public class PostController {
     public ResponseEntity<ApiResult<PostDetailResponse>> findBySlug(
             @Parameter(description = "게시물 slug", required = true) @PathVariable String slug) {
         return ResponseEntity.ok(ApiResult.ok(postService.findBySlug(slug)));
+    }
+
+    @Operation(summary = "조회수 반영", description = "게시물의 조회수를 1 올리고 갱신된 값을 돌려줍니다. 방문자 단위 중복 판별은 하지 않아 부를 때마다 반영됩니다.")
+    @ApiResponses({
+        @ApiResponse(
+                responseCode = "200",
+                description = "반영 성공",
+                content = @Content(schema = @Schema(implementation = PostViewResponse.class))),
+        @ApiResponse(
+                responseCode = "404",
+                description = "게시물을 찾을 수 없거나 숨김 상태",
+                content = @Content(schema = @Schema(implementation = ApiResult.class)))
+    })
+    @PostMapping("/{slug}/views")
+    public ResponseEntity<ApiResult<PostViewResponse>> increaseViewCount(
+            @Parameter(description = "게시물 slug", required = true) @PathVariable String slug) {
+        return ResponseEntity.ok(ApiResult.ok(postViewService.increaseViewCount(slug)));
     }
 }

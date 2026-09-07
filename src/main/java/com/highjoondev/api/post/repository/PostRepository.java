@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,6 +21,9 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     /** 수정, 삭제도 쓰는 조회라 숨김 여부로 거르지 않음 */
     @EntityGraph(attributePaths = {"category", "category.parent", "postTags", "postTags.tag"})
     Optional<Post> findBySlug(String slug);
+
+    /** 조회수 증가 시 유효한 게시물 판정 및 ID 확보 용도 */
+    Optional<Post> findBySlugAndIsHiddenFalse(String slug);
 
     /** 추천 자리가 찼는지 검사용. 숨긴 글도 포함해서 조회 */
     Optional<Post> findFirstByIsFeaturedTrue();
@@ -101,4 +105,13 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     @EntityGraph(attributePaths = {"category", "category.parent"})
     Page<Post> findByIsHiddenFalseAndCategoryIdInAndPostTags_Tag_NameOrderByPublishedAtDescIdDesc(
             Collection<UUID> categoryIds, String tagName, Pageable pageable);
+
+    /** 조회수 1 증가 */
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.viewCount = p.viewCount + 1 WHERE p.id = :id")
+    void increaseViewCount(@Param("id") UUID id);
+
+    /** 게시물의 조회수 조회 */
+    @Query("SELECT p.viewCount FROM Post p WHERE p.id = :id")
+    int findViewCountById(@Param("id") UUID id);
 }
