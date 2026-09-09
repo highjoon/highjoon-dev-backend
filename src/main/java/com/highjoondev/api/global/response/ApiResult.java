@@ -7,7 +7,13 @@ import java.util.List;
 
 @Schema(description = "공통 응답 양식")
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record ApiResult<T>(boolean success, T data, ApiError error, Instant timestamp) {
+public record ApiResult<T>(
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean success,
+        // 실패 응답에는 없음
+        @Schema(nullable = true) T data,
+        // 성공 응답에는 없음
+        @Schema(nullable = true) ApiError error,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant timestamp) {
     public static <T> ApiResult<T> ok(T data) {
         return new ApiResult<>(true, data, null, Instant.now());
     }

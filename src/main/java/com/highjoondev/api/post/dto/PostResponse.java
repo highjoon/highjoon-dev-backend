@@ -1,24 +1,27 @@
 package com.highjoondev.api.post.dto;
 
 import com.highjoondev.api.post.entity.Post;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
 public record PostResponse(
-        UUID id,
-        String slug,
-        String title,
-        String description,
-        String contentUrl,
-        String bannerImageUrl,
-        Instant publishedAt,
-        int viewCount,
-        CategoryRef category,
-        List<TagRef> tags,
-        Instant createdAt,
-        Instant updatedAt) {
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID id,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String slug,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String title,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String description,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String contentUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String bannerImageUrl,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant publishedAt,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int viewCount,
+        // 미분류 게시물은 없음
+        @Schema(nullable = true) CategoryRef category,
+
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<TagRef> tags,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant createdAt,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Instant updatedAt) {
     public static PostResponse from(Post post) {
         return new PostResponse(
                 post.getId(),

@@ -31,6 +31,11 @@ app:
   write-api:
     enabled: false
 
+springdoc:
+  api-docs:
+    # 3.1 은 nullable 키워드가 없어서 null 가능 여부가 문서에 안 실림
+    version: openapi_3_0
+
 management:
   endpoints:
     web:
