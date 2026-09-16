@@ -1,8 +1,10 @@
 package com.highjoondev.api.post.repository;
 
+import com.highjoondev.api.post.dto.PostMenuRow;
 import com.highjoondev.api.post.entity.Post;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -114,4 +116,17 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     /** 게시물의 조회수 조회 */
     @Query("SELECT p.viewCount FROM Post p WHERE p.id = :id")
     int findViewCountById(@Param("id") UUID id);
+
+    /**
+     * 사이드바 메뉴용 게시물 행 목록
+     * - 제목과 slug 만 조회
+     * - 숨김 글과 미분류 글 제외
+     */
+    @Query("""
+        SELECT p.category.id AS categoryId, p.title AS title, p.slug AS slug
+        FROM Post p
+        WHERE p.isHidden = false AND p.category IS NOT NULL
+        ORDER BY p.publishedAt DESC, p.id DESC
+        """)
+    List<PostMenuRow> findMenuRows();
 }
