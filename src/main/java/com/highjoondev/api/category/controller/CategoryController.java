@@ -1,6 +1,7 @@
 package com.highjoondev.api.category.controller;
 
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
+import com.highjoondev.api.category.dto.CategoryMenuResponse;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.dto.CategoryUpdateRequest;
 import com.highjoondev.api.category.service.CategoryService;
@@ -76,6 +77,21 @@ public class CategoryController {
     public ResponseEntity<ApiResult<CategoryResponse>> findById(
             @Parameter(description = "카테고리 ID", required = true) @PathVariable UUID id) {
         return ResponseEntity.ok(ApiResult.ok(categoryService.findById(id)));
+    }
+
+    @Operation(
+            summary = "카테고리 메뉴 조회",
+            description = "사이드바용 카테고리 트리를 조회합니다. 각 카테고리에 숨김이 아닌 게시물의 제목과 slug 가 발행일 최신순으로 담기고, "
+                    + "하위 카테고리는 children 에 중첩됩니다. 게시물이나 하위 카테고리가 없으면 빈 배열입니다.")
+    @ApiResponses({
+        @ApiResponse(
+                responseCode = "200",
+                description = "조회 성공",
+                content = @Content(schema = @Schema(implementation = CategoryMenuResponse.class)))
+    })
+    @GetMapping("/menu")
+    public ResponseEntity<ApiResult<List<CategoryMenuResponse>>> findMenu() {
+        return ResponseEntity.ok(ApiResult.ok(categoryService.findMenu()));
     }
 
     @Operation(summary = "카테고리 업데이트", description = "카테고리를 업데이트합니다.")

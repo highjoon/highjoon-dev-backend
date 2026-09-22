@@ -4,8 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.highjoondev.api.TestcontainersConfig;
+import com.highjoondev.api.category.dto.CategoryMenuRow;
 import com.highjoondev.api.category.entity.Category;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,5 +110,25 @@ public class CategoryRepositoryTest {
         // Then
         assertThat(categoryRepository.findById(parent.getId())).isEmpty();
         assertThat(categoryRepository.findById(child.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("메뉴용 행 조회 시 부모 id 포함")
+    void findMenuRows_withParentAndChild_shouldMapParentId() {
+        // Given
+        Category parent = categoryRepository.saveAndFlush(
+                Category.builder().title("부모").slug("menu-parent").build());
+        Category child = categoryRepository.saveAndFlush(
+                Category.builder().title("자식").slug("menu-child").parent(parent).build());
+
+        // When
+        Map<UUID, CategoryMenuRow> rows = categoryRepository.findMenuRows().stream()
+                .collect(Collectors.toMap(CategoryMenuRow::getId, Function.identity()));
+
+        // Then
+        assertThat(rows.get(parent.getId()).getParentId()).isNull();
+        assertThat(rows.get(child.getId()).getParentId()).isEqualTo(parent.getId());
+        assertThat(rows.get(child.getId()).getTitle()).isEqualTo("자식");
+        assertThat(rows.get(child.getId()).getSlug()).isEqualTo("menu-child");
     }
 }

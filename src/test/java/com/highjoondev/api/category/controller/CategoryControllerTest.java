@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
+import com.highjoondev.api.category.dto.CategoryMenuPostResponse;
+import com.highjoondev.api.category.dto.CategoryMenuResponse;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.dto.CategoryUpdateRequest;
 import com.highjoondev.api.category.exception.CategoryInvalidParentException;
@@ -253,5 +255,23 @@ public class CategoryControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("CATEGORY_NOT_FOUND"));
+    }
+
+    @Test
+    void findMenu_withNestedCategory_shouldReturn200() throws Exception {
+        // Given
+        var child = new CategoryMenuResponse(
+                UUID.randomUUID(), "자식", "child", List.of(new CategoryMenuPostResponse("글", "post-slug")), List.of());
+        var parent = new CategoryMenuResponse(UUID.randomUUID(), "부모", "parent", List.of(), List.of(child));
+        when(categoryService.findMenu()).thenReturn(List.of(parent));
+
+        // When / Then
+        mockMvc.perform(get("/api/v1/categories/menu"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].slug").value("parent"))
+                .andExpect(jsonPath("$.data[0].posts").isEmpty())
+                .andExpect(jsonPath("$.data[0].children[0].slug").value("child"))
+                .andExpect(jsonPath("$.data[0].children[0].posts[0].slug").value("post-slug"));
     }
 }

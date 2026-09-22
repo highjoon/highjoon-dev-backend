@@ -6,6 +6,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.highjoondev.api.category.dto.CategoryCreateRequest;
+import com.highjoondev.api.category.dto.CategoryMenuPostResponse;
+import com.highjoondev.api.category.dto.CategoryMenuResponse;
+import com.highjoondev.api.category.dto.CategoryMenuRow;
 import com.highjoondev.api.category.dto.CategoryResponse;
 import com.highjoondev.api.category.dto.CategoryUpdateRequest;
 import com.highjoondev.api.category.entity.Category;
@@ -14,6 +17,8 @@ import com.highjoondev.api.category.exception.CategoryNotFoundException;
 import com.highjoondev.api.category.exception.CategoryParentNotFoundException;
 import com.highjoondev.api.category.exception.DuplicatedCategorySlugException;
 import com.highjoondev.api.category.repository.CategoryRepository;
+import com.highjoondev.api.post.dto.PostMenuRow;
+import com.highjoondev.api.post.repository.PostRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +34,9 @@ public class CategoryServiceTest {
 
     @Mock
     private CategoryRepository categoryRepository;
+
+    @Mock
+    private PostRepository postRepository;
 
     @InjectMocks
     private CategoryService categoryService;
@@ -296,5 +304,111 @@ public class CategoryServiceTest {
 
         // Then
         assertThatThrownBy(() -> categoryService.deleteById(id)).isInstanceOf(CategoryNotFoundException.class);
+    }
+
+    private CategoryMenuRow categoryRow(UUID id, String title, String slug, UUID parentId) {
+        return new CategoryMenuRow() {
+            @Override
+            public UUID getId() {
+                return id;
+            }
+
+            @Override
+            public String getTitle() {
+                return title;
+            }
+
+            @Override
+            public String getSlug() {
+                return slug;
+            }
+
+            @Override
+            public UUID getParentId() {
+                return parentId;
+            }
+        };
+    }
+
+    private PostMenuRow postRow(UUID categoryId, String title, String slug) {
+        return new PostMenuRow() {
+            @Override
+            public UUID getCategoryId() {
+                return categoryId;
+            }
+
+            @Override
+            public String getTitle() {
+                return title;
+            }
+
+            @Override
+            public String getSlug() {
+                return slug;
+            }
+        };
+    }
+
+    @Test
+    void findMenu_withParentAndChild_shouldNestChildAndAttachPosts() {
+        // Given
+        UUID parentId = UUID.randomUUID();
+        UUID childId = UUID.randomUUID();
+        when(categoryRepository.findMenuRows())
+                .thenReturn(List.of(
+                        categoryRow(parentId, "부모", "parent", null), categoryRow(childId, "자식", "child", parentId)));
+        when(postRepository.findMenuRows()).thenReturn(List.of(postRow(childId, "글", "post-slug")));
+
+        // When
+        List<CategoryMenuResponse> menu = categoryService.findMenu();
+
+        // Then
+        assertThat(menu).hasSize(1);
+        CategoryMenuResponse parent = menu.get(0);
+        assertThat(parent.slug()).isEqualTo("parent");
+        assertThat(parent.posts()).isEmpty();
+        assertThat(parent.children()).hasSize(1);
+
+        CategoryMenuResponse child = parent.children().get(0);
+        assertThat(child.slug()).isEqualTo("child");
+        assertThat(child.children()).isEmpty();
+        assertThat(child.posts()).extracting(CategoryMenuPostResponse::slug).containsExactly("post-slug");
+    }
+
+    @Test
+    void findMenu_withoutPostsAndChildren_shouldReturnEmptyLists() {
+        // Given
+        when(categoryRepository.findMenuRows())
+                .thenReturn(List.of(categoryRow(UUID.randomUUID(), "혼자", "alone", null)));
+        when(postRepository.findMenuRows()).thenReturn(List.of());
+
+        // When
+        List<CategoryMenuResponse> menu = categoryService.findMenu();
+
+        // Then
+        assertThat(menu.get(0).posts()).isNotNull().isEmpty();
+        assertThat(menu.get(0).children()).isNotNull().isEmpty();
+    }
+
+    @Test
+    void findMenu_withUnorderedCategories_shouldSortRootsAndChildrenByTitle() {
+        // Given
+        UUID rootId = UUID.randomUUID();
+        when(categoryRepository.findMenuRows())
+                .thenReturn(List.of(
+                        categoryRow(UUID.randomUUID(), "나", "na", null),
+                        categoryRow(rootId, "가", "ga", null),
+                        categoryRow(UUID.randomUUID(), "자식2", "child2", rootId),
+                        categoryRow(UUID.randomUUID(), "자식1", "child1", rootId)));
+        when(postRepository.findMenuRows()).thenReturn(List.of());
+
+        // When
+        List<CategoryMenuResponse> menu = categoryService.findMenu();
+
+        // Then
+        assertThat(menu).extracting(CategoryMenuResponse::title).containsExactly("가", "나");
+        assertThat(menu.get(0).children())
+                .extracting(CategoryMenuResponse::title)
+                .containsExactly("자식1", "자식2");
     }
 }

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.highjoondev.api.TestcontainersConfig;
 import com.highjoondev.api.category.entity.Category;
 import com.highjoondev.api.category.repository.CategoryRepository;
+import com.highjoondev.api.post.dto.PostMenuRow;
 import com.highjoondev.api.post.entity.Post;
 import com.highjoondev.api.tag.entity.Tag;
 import com.highjoondev.api.tag.repository.TagRepository;
@@ -545,5 +546,24 @@ public class PostRepositoryTest {
 
         // Then
         assertThat(tagRepository.findById(spring.getId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("메뉴용 행 조회 시 숨김 글과 미분류 글 제외, 발행일 내림차순")
+    void findMenuRows_withHiddenAndUncategorized_shouldExcludeThem() {
+        // Given
+        Category category = categoryRepository.saveAndFlush(
+                Category.builder().title("메뉴").slug("menu-cat").build());
+        save(post("menu-old", DAY_1).category(category));
+        save(post("menu-new", DAY_3).category(category));
+        save(post("menu-hidden", DAY_2).category(category).isHidden(true));
+        save(post("menu-uncategorized", DAY_2));
+
+        // When
+        List<PostMenuRow> rows = postRepository.findMenuRows();
+
+        // Then
+        assertThat(rows).extracting(PostMenuRow::getSlug).containsExactly("menu-new", "menu-old");
+        assertThat(rows).allMatch(row -> row.getCategoryId().equals(category.getId()));
     }
 }

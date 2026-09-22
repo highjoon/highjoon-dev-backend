@@ -56,8 +56,34 @@ public class CategoryService {
                 .computeIfAbsent(row.getCategoryId(), key -> new ArrayList<>())
                 .add(new CategoryMenuPostResponse(row.getTitle(), row.getSlug())));
 
-        // TODO: categoryMenuRows 를 parentId 로 묶고, 루트부터 재귀로 트리 조립
-        return List.of();
+        // 카테고리 id 별 하위 카테고리
+        Map<UUID, List<CategoryMenuRow>> childrenByParentId = new HashMap<>();
+        categoryMenuRows.forEach(row -> childrenByParentId
+                .computeIfAbsent(row.getParentId(), key -> new ArrayList<>())
+                .add(row));
+
+        return childrenByParentId.getOrDefault(null, List.of()).stream()
+                .sorted(Comparator.comparing(CategoryMenuRow::getTitle))
+                .map(row -> toNode(row, childrenByParentId, postsByCategoryId))
+                .toList();
+    }
+
+    private CategoryMenuResponse toNode(
+            CategoryMenuRow row,
+            Map<UUID, List<CategoryMenuRow>> childrenByParentId,
+            Map<UUID, List<CategoryMenuPostResponse>> postsByCategoryId) {
+        // 자기 id로 자식 카테고리를 꺼내어 title 순 정렬 후 각각 toNode 재귀 적용
+        List<CategoryMenuResponse> children = childrenByParentId.getOrDefault(row.getId(), List.of()).stream()
+                .sorted(Comparator.comparing(CategoryMenuRow::getTitle))
+                .map(child -> toNode(child, childrenByParentId, postsByCategoryId))
+                .toList();
+
+        return new CategoryMenuResponse(
+                row.getId(),
+                row.getTitle(),
+                row.getSlug(),
+                postsByCategoryId.getOrDefault(row.getId(), List.of()),
+                children);
     }
 
     @Transactional
