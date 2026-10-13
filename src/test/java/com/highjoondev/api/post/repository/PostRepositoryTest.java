@@ -46,7 +46,7 @@ public class PostRepositoryTest {
     @Autowired
     EntityManager entityManager;
 
-    // V7이 넣은 이관 글이 각 테스트가 저장한 글에 섞이지 않도록 비움. 테스트 종료 시 롤백
+    // 각 테스트가 저장한 글만 남도록 비움. 테스트 종료 시 롤백
     @BeforeEach
     void clearImportedPosts() {
         postRepository.deleteAllInBatch();
@@ -66,7 +66,6 @@ public class PostRepositoryTest {
         return postRepository.saveAndFlush(builder.build());
     }
 
-    // V4가 넣은 태그와 겹치지 않는 이름만 씀
     private Tag tag(String name) {
         return tagRepository.saveAndFlush(Tag.builder().name(name).build());
     }
@@ -435,7 +434,6 @@ public class PostRepositoryTest {
     @DisplayName("카테고리와 태그를 함께 주면 둘 다 만족하는 글만")
     void findByCategoryIdsAndTagName_shouldRequireBothConditions() {
         // Given
-        // V2가 넣은 카테고리와 겹치지 않는 slug만 씀
         Category backend = categoryRepository.saveAndFlush(
                 Category.builder().title("백엔드").slug("cat-backend").build());
         Category frontend = categoryRepository.saveAndFlush(

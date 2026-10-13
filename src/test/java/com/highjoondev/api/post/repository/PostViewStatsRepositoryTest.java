@@ -38,7 +38,7 @@ public class PostViewStatsRepositoryTest {
 
     private Post savedPost;
 
-    // V7이 넣은 이관 글이 섞이지 않도록 비움. 테스트 종료 시 롤백
+    // 각 테스트가 저장한 글만 남도록 비움. 테스트 종료 시 롤백
     @BeforeEach
     void setUp() {
         postRepository.deleteAllInBatch();

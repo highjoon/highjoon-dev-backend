@@ -1,7 +1,0 @@
-ALTER TABLE category
-    ALTER COLUMN created_at SET NOT NULL,
-    ALTER COLUMN updated_at SET NOT NULL;
-
-ALTER TABLE tag
-    ALTER COLUMN created_at SET NOT NULL,
-    ALTER COLUMN updated_at SET NOT NULL;

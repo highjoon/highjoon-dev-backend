@@ -13,12 +13,6 @@ spring:
     properties:
       hibernate:
         default_batch_fetch_size: 100
-  datasource:
-    hikari:
-      maximum-pool-size: 3
-      minimum-idle: 0
-      idle-timeout: 60000
-      max-lifetime: 300000
 
 server:
   forward-headers-strategy: native
