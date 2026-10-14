@@ -15,8 +15,7 @@ public interface PostViewStatsRepository extends JpaRepository<PostViewStats, UU
     @Query(nativeQuery = true, value = """
         INSERT INTO post_view_stats (id, post_id, viewed_on, view_count)
         VALUES (:id, :postId, :viewedOn, 1)
-        ON CONFLICT (post_id, viewed_on)
-        DO UPDATE SET view_count = post_view_stats.view_count + 1
+        ON DUPLICATE KEY UPDATE view_count = view_count + 1
         """)
     void increaseViewCount(@Param("id") UUID id, @Param("postId") UUID postId, @Param("viewedOn") LocalDate viewedOn);
 }
