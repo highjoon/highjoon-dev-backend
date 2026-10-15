@@ -1,0 +1,111 @@
+name: highjoon-dev-infra
+
+x-common: &common
+  restart: unless-stopped
+  networks:
+    - highjoon-dev-net
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  mysql:
+    <<: *common
+    image: mysql:8.4
+    container_name: highjoon-dev-mysql
+    mem_limit: 1g
+    cpus: 1.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 필요}
+      MYSQL_DATABASE: highjoon_dev
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER 필요}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD 필요}
+    command: 
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+      - --innodb-buffer-pool-size=256M
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+  
+  loki:
+    <<: *common
+    image: grafana/loki:3.3.2
+    mem_limit: 768m
+    cpus: 1.0
+    command:
+      - -config.file=/etc/loki/loki-config.yml
+      - -config.expand-env=true
+    environment:
+      LOKI_S3_ENDPOINT: ${LOKI_S3_ENDPOINT:?LOKI_S3_ENDPOINT 필요}
+      LOKI_S3_REGION: ${LOKI_S3_REGION:?LOKI_S3_REGION 필요}
+      LOKI_S3_BUCKET: ${LOKI_S3_BUCKET:?LOKI_S3_BUCKET 필요}
+      LOKI_S3_ACCESS_KEY: ${LOKI_S3_ACCESS_KEY:?LOKI_S3_ACCESS_KEY 필요}
+      LOKI_S3_SECRET_KEY: ${LOKI_S3_SECRET_KEY:?LOKI_S3_SECRET_KEY 필요}
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+  
+  prometheus:
+    <<: *common
+    image: prom/prometheus:v3.1.0
+    mem_limit: 768m
+    cpus: 0.5
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+  
+  node-exporter:
+    <<: *common
+    image: prom/node-exporter:v1.8.2
+    mem_limit: 64m
+    cpus: 0.2
+    pid: host
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+  
+  grafana:
+    <<: *common
+    image: grafana/grafana:11.4.0
+    mem_limit: 512m
+    cpus: 0.5
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SERVER_ROOT_URL: https://grafana.highjoon-dev.com
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?GRAFANA_ADMIN_USER 필요}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD 필요}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:?DISCORD_WEBHOOK_URL 필요}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+
+networks:
+  highjoon-dev-net:
+    external: true
+
+volumes:
+  mysql-data:
+  loki-data:
+  prometheus-data:
+  grafana-data:

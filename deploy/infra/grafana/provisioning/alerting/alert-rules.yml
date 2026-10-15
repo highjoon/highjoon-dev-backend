@@ -1,0 +1,179 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: highjoon-dev
+    folder: highjoon-dev
+    interval: 1m
+    rules:
+      - uid: hjd-error-logs
+        title: 백엔드 ERROR 로그 발생
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+        annotations:
+          summary: 최근 5분 내 ERROR 로그 발생
+        labels:
+          service: highjoon-dev
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              refId: A
+              datasource:
+                type: loki
+                uid: loki
+              expr: 'sum(count_over_time({service="highjoon-dev-backend", log_level="ERROR"}[5m]))'
+              queryType: instant
+              editorMode: code
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+              settings:
+                mode: dropNN
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
+
+      - uid: hjd-backend-down
+        title: 백엔드 blue green 모두 다운
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Error
+        isPaused: false
+        annotations:
+          summary: blue 와 green 수집 대상이 모두 응답하지 않음
+        labels:
+          service: highjoon-dev
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: 'sum(up{job="highjoon-dev-backend"})'
+              instant: true
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+              settings:
+                mode: dropNN
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - evaluator:
+                    type: lt
+                    params:
+                      - 1
+
+      - uid: hjd-disk-usage
+        title: 호스트 디스크 사용률 80퍼센트 초과
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: Error
+        isPaused: false
+        annotations:
+          summary: 호스트 루트 파일시스템 사용률 80퍼센트 초과
+        labels:
+          service: highjoon-dev
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              datasource:
+                type: prometheus
+                uid: prometheus
+              expr: '(1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) * 100'
+              instant: true
+          - refId: B
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+              settings:
+                mode: dropNN
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 80

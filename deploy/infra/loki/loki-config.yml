@@ -1,0 +1,58 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+  storage:
+    s3:
+      endpoint: ${LOKI_S3_ENDPOINT}
+      region: ${LOKI_S3_REGION}
+      bucketnames: ${LOKI_S3_BUCKET}
+      access_key_id: ${LOKI_S3_ACCESS_KEY}
+      secret_access_key: ${LOKI_S3_SECRET_KEY}
+      s3forcepathstyle: true
+      insecure: false
+
+schema_config:
+  configs:
+    - from: "2026-10-01"
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/tsdb-index
+    cache_location: /loki/tsdb-cache
+
+ingester:
+  wal:
+    enabled: true
+    dir: /loki/wal
+  chunk_idle_period: 2h
+  max_chunk_age: 6h
+
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: s3
+
+limits_config:
+  retention_period: 720h
+
+analytics:
+  reporting_enabled: false
