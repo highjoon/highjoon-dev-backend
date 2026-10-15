@@ -1,40 +1,38 @@
-# 두 버전이 공유하는 설정
+name: highjoon-dev-app
+
 x-app: &app-base
-  # stop으로 명시적으로 멈추지 않는 한 죽으면 계속 재시작
   restart: unless-stopped
   env_file:
     - .env
-  # 컨테이너가 쓸 수 있는 최대 메모리. 두 버전이 동시에 떠도 RAM 안에 들어갈 수 있어야함
-  mem_limit: 400m
-  # 종료 신호 후 강제 종료되기까지 대기 시간. 스프링 부트의 graceful shutdown (30s) 보다 길어야함
+  mem_limit: 1g
+  cpus: 1.0
   stop_grace_period: 40s
-  # 로그 파일 크기 제한. 10mb 파일 3개까지 보관
+  labels:
+    stack: highjoon-dev
   logging:
     driver: json-file
     options:
       max-size: "10m"
       max-file: "3"
-  # 앱의 헬스체크 엔드포인트를 주기적으로 확인
+      labels: "stack"
   healthcheck:
-    test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health" ]
+    test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
     interval: 30s
     timeout: 5s
     retries: 5
     start_period: 180s
     start_interval: 5s
+  networks:
+    - highjoon-dev-net
 
 services:
-  # blue. 8081 포트 점유
   app-blue:
     <<: *app-base
-    # blue 프로필 지정
     profiles: [ "blue" ]
     image: ghcr.io/highjoon/highjoon-dev-backend:${BLUE_TAG:-latest}
-    # 127.0.0.1 바인딩. VM 내부에서만 접근 가능, 외부는 Nginx를 거쳐야함
     ports:
       - "127.0.0.1:8081:8080"
 
-  # green. 8082 포트 점유
   app-green:
     <<: *app-base
     profiles: [ "green" ]
@@ -42,24 +40,23 @@ services:
     ports:
       - "127.0.0.1:8082:8080"
 
-  # 컨테이너 로그 파일을 읽어서 Cloud Logging으로 전송
-  # 프로필이 없으므로 blue/green과 무관하게 항상 떠있음
   fluent-bit:
-    # 이미지 태그 고정
     image: fluent/fluent-bit:3.2
     restart: unless-stopped
     mem_limit: 64m
+    cpus: 0.25
+    networks:
+      - highjoon-dev-net
     volumes:
-      # Docker 가 쓴 로그 파일. :ro (읽기 전용)
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      # 설정 파일. 배포할 때마다 갱신
       - /opt/highjoon-dev/fluent-bit:/fluent-bit/etc:ro
-      # 어디까지 읽었는지 기록. 앱 재시작 시 중복 전송을 막기 위함
       - flb-state:/var/log/flb
-    # Fluent Bit 자기 로그는 기록하지 않음
     logging:
       driver: "none"
 
-# 컨테이너와 별개로 유지되는 볼륨 마운트
+networks:
+  highjoon-dev-net:
+    external: true
+
 volumes:
   flb-state:

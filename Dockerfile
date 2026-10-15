@@ -11,4 +11,4 @@ EXPOSE 8080
 # 유저 지정
 USER appuser
 # 컨테이너 시작 시 실행하는 명령어. 스프링 부트 앱 시작
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=50", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]
