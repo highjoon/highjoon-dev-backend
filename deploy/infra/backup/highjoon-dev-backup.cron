@@ -1,0 +1,1 @@
+17 18 * * * ubuntu /opt/highjoon-dev-infra/backup/backup-mysql.sh >> /var/log/highjoon-dev-backup.log 2>&1
