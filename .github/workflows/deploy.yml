@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
     permissions:
       contents: read
@@ -40,6 +40,7 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
+          platforms: linux/arm64
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
@@ -147,9 +148,12 @@ jobs:
           ssh "$VM_USER@$VM_HOST" "/opt/highjoon-dev/switch.sh $TARGET_PORT"
 
       - name: Verify public
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
         run: |
           for _ in $(seq 1 18); do
-            if curl -fsS --max-time 10 https://api.highjoon-dev.com/api/v1/categories >/dev/null; then
+            if curl -fsS --max-time 10 --resolve "api.highjoon-dev.com:443:${VM_HOST}" \
+                 https://api.highjoon-dev.com/api/v1/categories >/dev/null; then
               exit 0
             fi
             sleep 5
@@ -227,7 +231,8 @@ jobs:
           EOF
 
           for _ in $(seq 1 12); do
-            curl -fsS --max-time 10 https://api.highjoon-dev.com/api/v1/categories >/dev/null && exit 0
+            curl -fsS --max-time 10 --resolve "api.highjoon-dev.com:443:${VM_HOST}" \
+              https://api.highjoon-dev.com/api/v1/categories >/dev/null && exit 0
             sleep 5
           done
           exit 1
